@@ -1,38 +1,49 @@
-# Vue Swift i18n Plus
+# LocaleSail for Vue i18n
 
-## 🚀 简介 / Introduction
+[English](#localesail-for-vue-i18n) | [中文文档](https://github.com/EyaaCai/localesail-for-vue-i18n/blob/master/docs/README.md)
 
-`Vue Swift i18n Plus` 是一款专为 Vue 和 Javascript/TypeScript 开发者设计的国际化自动化利器。它是基于开源项目 `vue-swift-i18n` 的深度增强版，旨在彻底解决手动维护国际化字典的繁琐工作。
+Turn Chinese interface copy into maintainable Vue locale keys without leaving VS Code.
 
----
+LocaleSail is focused on one migration workflow: find Chinese text in Vue and TypeScript, write it to a locale JSON file, replace the source text with vue-i18n calls, and optionally split a large locale file into typed modules.
 
-## 🔥 核心增强功能 / Key Features
+## What LocaleSail does
 
-1. **支持 Vue3 和 TypeScript(Vue 3 and TypeScript)**: 支持 TypeScript 与 Vue 3 script setup 国际化方案。
-2. **多模块拆分逻辑 (Split & Append Logic)**:
-   - 支持将庞大的扁平字典自动按照 `key` 路径拆分为目录式的子文件（例如：`views/account.ts`）。
-   - 当目标文件已存在时，自动识别差异，仅在对象末尾追加新增的 Key，且**保留原文件中的代码注释和代码格式**。
-3. **实时配置生效**: 无需重启扩展，修改插件配置后即可立即应用于编辑器环境。
-4. **更智能的插值处理**: 支持 Vue 模板 `{{ }}` 插值、模板字符串中的嵌套中文提取，以及 mixin 文件中的 `this.$t(...)` 替换。
+| Step | Result |
+| --- | --- |
+| Extract | Finds Chinese copy in Vue templates, attributes, scripts, TypeScript, and template literals. |
+| Replace | Converts matching copy to `$t(...)`, `this.$t(...)`, or `t(...)` calls for the current code context. |
+| Inspect | Shows locale values for keys in the editor and refreshes the result after edits. |
+| Organize | Flattens or restores nested JSON and builds directory-based JavaScript or TypeScript locale modules. |
 
----
+LocaleSail preserves template interpolation values as i18n parameters, supports Vue 3 `<script setup>`, and can append new entries to existing split modules without replacing their comments or formatting.
 
-## 🛠️ 快速开始 / Quick Start
+## Quick start
 
-1. 安装 `Vue Swift i18n Plus` 扩展。
-2. 根据需要配置 `vueSwiftI18nPlus.defaultLocalesPath`。
-3. 在代码中使用 `Ctrl+Alt+U` (Windows) 或 `Ctrl+Cmd+U` (Mac) 提取汉字。
-4. 使用 `Ctrl+Alt+I` 执行快速替换。
+1. Install **LocaleSail for Vue i18n** from the Visual Studio Marketplace.
+2. Set `localeSail.defaultLocalesPath` if your locale directory is not `src/locales`.
+3. Open a `.vue`, `.js`, or `.ts` file and run **LocaleSail: Extract Chinese Copy**.
+4. Review the generated locale JSON, then run **LocaleSail: Replace Copy with i18n Keys**.
 
----
+Release 0.2.0 introduces the independent `localeSail.*` settings namespace. Settings saved under the pre-0.2 namespace must be entered again with the new keys.
 
-## 📜 许可证 & 致敬 / License & Credits
+## Commands
 
-- 本插件继承并遵循 **MIT License**。
-- **致敬**: 感谢原作者 [RichieChoo](https://github.com/RichieChoo) 开发的基础版本 `vue-swift-i18n`。本版本在此基础上进行了逻辑重构与功能增强，以满足更复杂的生产环境需求。
+| Command | Default shortcut |
+| --- | --- |
+| Extract Chinese Copy | `Ctrl+Alt+U` / `Ctrl+Cmd+U` |
+| Replace Copy with i18n Keys | `Ctrl+Alt+I` / `Ctrl+Cmd+I` |
+| Preview Translation Values | `Ctrl+Alt+O` / `Ctrl+Cmd+O` |
+| Create Workspace Configuration | `Ctrl+Alt+G` / `Ctrl+Cmd+G` |
+| Build Split Locale Modules | Explorer or editor context menu on a JSON file |
 
----
+See [the detailed behavior guide](./README_DETAIL.md) for extraction rules, replacement forms, JSON paths, and all settings.
 
-## 💎 赞赏与反馈 / Appreciation & Feedback
+## Project links
 
-如果您觉得由于本插件的帮助提高了您的效率，欢迎 Star 支持。
+- [Source and documentation](https://github.com/EyaaCai/localesail-for-vue-i18n)
+- [Bug reports and feature requests](https://github.com/EyaaCai/localesail-for-vue-i18n/issues)
+- [Release history](./CHANGELOG.md)
+
+## License and lineage
+
+LocaleSail for Vue i18n is distributed under the MIT License. It began as a fork of [RichieChoo/vue-swift-i18n](https://github.com/RichieChoo/vue-swift-i18n); the original copyright notice remains in [LICENSE](./LICENSE), and subsequent LocaleSail changes are maintained independently by Eyaa.

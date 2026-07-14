@@ -14,12 +14,12 @@ module.exports = [
 	{
 		text: "Marketplace",
 		link:
-			"https://marketplace.visualstudio.com/items?itemName=RichieChoo.vue-swift-i18n&ssr=false#overview",
+			"https://marketplace.visualstudio.com/items?itemName=Eyaa.vue-swift-i18n-plus#overview",
 		target: "_blank"
 	},
 	{
-		text: "Github",
-		link: "https://github.com/RichieChoo/vue-swift-i18n",
+		text: "GitHub",
+		link: "https://github.com/EyaaCai/localesail-for-vue-i18n",
 		target: "_blank"
 	}
 ];

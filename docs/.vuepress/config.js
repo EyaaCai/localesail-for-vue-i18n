@@ -2,8 +2,8 @@ const fs = require("fs");
 const path = require("path");
 const nav = require("./nav");
 module.exports = {
-	title: "Vue Swift I18n Plus",
-	description: "vscode 极速国际化插件（vue-i18n 增强版）",
+	title: "LocaleSail for Vue i18n",
+	description: "在 VS Code 中提取中文文案、生成 locale key 并维护 Vue 国际化文件",
 	head: [["link", { rel: "icon", href: "/logo.png" }]],
 	themeConfig: {
 		logo: "/logo.png",
@@ -31,7 +31,7 @@ function getAutoSideBar(groups) {
 		title: v.title,
 		collapsable: !!v.collapsable,
 		children: [
-			"",
+			...(fs.existsSync(path.resolve(__dirname, v.path, "README.md")) ? [""] : []),
 			...fs
 				.readdirSync(path.resolve(__dirname, v.path))
 				.map((m) => m.slice(0, -3))

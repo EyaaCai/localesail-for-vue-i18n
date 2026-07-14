@@ -35,7 +35,7 @@ const getCustomSettingKey = (customSetting, key) => {
   if (customSetting && customSetting.hasOwnProperty(key)) {
     return customSetting[key];
   }
-  const settings = workspace.getConfiguration('vueSwiftI18nPlus');
+  const settings = workspace.getConfiguration('localeSail');
   return settings.get(key);
 };
 

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="LocaleSail logo">
+  <rect x="8" y="8" width="240" height="240" rx="44" fill="#17212B"/>
+  <rect x="9.5" y="9.5" width="237" height="237" rx="42.5" fill="none" stroke="#31404D" stroke-width="3"/>
+  <path d="M104 48 42 145h62Z" fill="#20B7A5"/>
+  <path d="m122 66 80 79h-80Z" fill="#FF705D"/>
+  <path d="M113 44v112" fill="none" stroke="#F4F1E8" stroke-linecap="round" stroke-width="10"/>
+  <path d="M42 174c25-12 48-12 72 0s48 12 72 0" fill="none" stroke="#F4F1E8" stroke-linecap="round" stroke-width="8"/>
+  <path d="M67 207h122" fill="none" stroke="#60717E" stroke-linecap="round" stroke-width="5"/>
+  <circle cx="67" cy="207" r="8" fill="#20B7A5"/>
+  <circle cx="128" cy="207" r="8" fill="#F4F1E8"/>
+  <circle cx="189" cy="207" r="8" fill="#FF705D"/>
+</svg>

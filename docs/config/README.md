@@ -4,7 +4,7 @@
 
 - 类型：`string`
 - 默认值：`src/locales`
-- 描述：指定 vue-swift-i18n 更新国际化 JSON 和快速展示国际化 JSON 的文件目录地址。
+- 描述：指定 LocaleSail 提取文案和预览翻译值时使用的 locale JSON 目录。
 
 ## doNotDisturb
 
@@ -96,5 +96,5 @@
 - 描述：生成拆分文件的后缀名。设置为 `auto` 时将根据项目根目录是否存在 `tsconfig.json` 自动识别。
 
 ::: tip 提示
-在 VSCode 的设置面板中，所有配置项均以 `vueSwiftI18nPlus.` 作为前缀。
+在 VSCode 的设置面板中，所有配置项均以 `localeSail.` 作为前缀。
 :::

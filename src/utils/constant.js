@@ -15,29 +15,29 @@ const constants = {
     'javascriptreact',
   ],
   operation: {
-    flatJson: { cmd: 'vueSwiftI18nPlus.flatJson', title: 'Flat Json' },
-    unFlatJson: { cmd: 'vueSwiftI18nPlus.unFlatJson', title: 'unFlat Json' },
+    flatJson: { cmd: 'localeSail.flatJson', title: 'Flatten Locale JSON' },
+    unFlatJson: { cmd: 'localeSail.unFlatJson', title: 'Restore Nested Locale JSON' },
     showI18n: {
-      cmd: 'vueSwiftI18nPlus.showI18n',
-      title: 'Show I18n Translate Detail',
+      cmd: 'localeSail.showI18n',
+      title: 'Preview Translation Values',
     },
     updateI18n: {
-      cmd: 'vueSwiftI18nPlus.updateI18n',
-      title: 'Update I18n Locales Json',
+      cmd: 'localeSail.updateI18n',
+      title: 'Extract Chinese Copy',
     },
     generateRichieRC: {
-      cmd: 'vueSwiftI18nPlus.generateRichieRC',
-      title: 'Generate scope config file',
+      cmd: 'localeSail.generateRichieRC',
+      title: 'Create Workspace Configuration',
     },
-    swiftI18n: { cmd: 'vueSwiftI18nPlus.swiftI18n', title: 'Swift I18n' },
-    hoverI18n: { cmd: 'vueSwiftI18nPlus.hoverI18n', title: 'Hover I18n' },
-    openI18nFile: { cmd: 'vueSwiftI18nPlus.openI18nFile', title: 'Open File' },
-    generateI18nFiles: { cmd: 'vueSwiftI18nPlus.generateI18nFiles', title: 'Generate Split I18n Files' },
+    swiftI18n: { cmd: 'localeSail.swiftI18n', title: 'Replace Copy with i18n Keys' },
+    hoverI18n: { cmd: 'localeSail.hoverI18n', title: 'Hover I18n' },
+    openI18nFile: { cmd: 'localeSail.openI18nFile', title: 'Open Locale Source' },
+    generateI18nFiles: { cmd: 'localeSail.generateI18nFiles', title: 'Build Split Locale Modules' },
   },
   plugin: {
-    name: 'vue-swift-i18n-plus',
+    name: 'LocaleSail for Vue i18n',
     congratulations:
-      'Congratulations, your extension "vue-swift-i18n-plus" is now active!',
+      'LocaleSail for Vue i18n is now active.',
     noUri: 'please selected a json file first',
   },
   defaultConfig: {

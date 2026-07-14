@@ -2,7 +2,7 @@
 
 在大型项目中，如果所有的国际化文案都挤在一个巨大的 JSON 文件里，维护起来会非常痛苦。且一旦多人协作修改同一个 JSON，极易引发代码冲突。
 
-`Vue Swift i18n Plus` 引入了强大的**智能拆分功能**。
+LocaleSail 提供了可增量执行的**智能拆分功能**。
 
 ## 功能特性
 
@@ -23,5 +23,5 @@
 
 ## 配置项
 
-- `vueSwiftI18nPlus.generateI18nFilesOutputDir`: 设置拆分文件存放的基准路径（默认 `src/i18n/lang/zh-cn`）。
-- `vueSwiftI18nPlus.generateI18nFilesExt`: 设置输出文件名后缀（`auto` / `js` / `ts`）。
+- `localeSail.generateI18nFilesOutputDir`: 设置拆分文件存放的基准路径（默认 `src/i18n/lang/zh-cn`）。
+- `localeSail.generateI18nFilesExt`: 设置输出文件名后缀（`auto` / `js` / `ts`）。

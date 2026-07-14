@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 
 
-deployName="Vue Swift I18n Docs"
+deployName="LocaleSail for Vue i18n Docs"
 readonly deployName
 
 

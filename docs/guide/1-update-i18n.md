@@ -6,7 +6,7 @@
 
 - 位于 `<template></template>`中的汉字，如 `<span>汉字123</span>`
 - 位于 `<template></template>`中的标签属性的汉字，如 `<span title="汉字"></span>`
-- 位于 `<template></template>`中的 `{{`与 `}}`之间的汉字，如 `<span>{{test ? "汉字" : "中文" }}</span>`，同时会保留插值里的静态中文文本，如 `<span>发运单号：{{ detail.carriageId }}</span>`
+- 位于 `<template></template>` 插值表达式中的汉字，例如条件表达式里的“汉字”和“中文”；同时会保留“发运单号：”这类位于插值变量旁的静态中文文本
 - 位于 `<script></script>`中的 `"`与 `"`之间的汉字，`'`与 `'`之间的**汉字**，并支持模板字符串中的插值参数与兜底中文提取
 - 过滤单行注释
 

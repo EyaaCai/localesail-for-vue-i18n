@@ -1,27 +1,27 @@
-# Vue Swift I18n Plus
+# LocaleSail for Vue i18n
 
-像数 1, 2, 3, 4, 5 一样容易 :wink:
+LocaleSail 是一个面向 Vue 与 TypeScript 项目的 vue-i18n 工作台，用于把源码中的中文界面文案转换成可维护的 locale key。
 
-``` bash
-# 安装
+```bash
+# VS Code Quick Open (Ctrl+P)
 ext install Eyaa.vue-swift-i18n-plus
 ```
 
-::: tip 亮点功能
-支持 Vue 3 `script setup` 语法，支持 TypeScript，支持自动拆分 i18n 多文件模块，并支持在原有文件中智能追加新 Key 且保留注释。
-:::
+## 主要工作流
 
-## 快速上手
+1. 在 `.vue`、`.js` 或 `.ts` 文件中执行 **LocaleSail: Extract Chinese Copy**。
+2. 审核写入 locale JSON 的文案与 key。
+3. 执行 **LocaleSail: Replace Copy with i18n Keys** 完成源码替换。
+4. 按需将大型 JSON 生成为目录化的 JavaScript/TypeScript locale 模块。
 
-# 生成/更新 i18n JSON 文件
-Ctrl + Alt + U # Ctrl + Cmd + U
+LocaleSail 支持 Vue 3 `<script setup>`、模板插值参数、TypeScript、短 hash key 回查，以及在不覆盖注释和原有格式的前提下追加拆分模块。
 
-# 替换 Vue 中需要国际化的汉字
-Ctrl + Alt + I # Ctrl + Cmd + I
+## 快捷键
 
-# 查看已经替换的 i18n 对应值
-Ctrl + Alt + O # Ctrl + Cmd + O
+- 提取中文文案：`Ctrl+Alt+U` / `Ctrl+Cmd+U`
+- 替换为 i18n key：`Ctrl+Alt+I` / `Ctrl+Cmd+I`
+- 预览翻译内容：`Ctrl+Alt+O` / `Ctrl+Cmd+O`
 
-::: warning 注意
-请确保你的 Vscode 版本 >= 1.37。
+::: warning 运行环境
+需要 VS Code 1.37 或更高版本。
 :::

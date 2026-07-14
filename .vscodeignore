@@ -10,3 +10,7 @@ webpack.config.js
 src/**
 node_modules
 docs/**
+MARKETPLACE_REVIEW.md
+icon-source.svg
+scripts/**
+release/**
