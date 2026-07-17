@@ -14,7 +14,7 @@ module.exports = [
 	{
 		text: "Marketplace",
 		link:
-			"https://marketplace.visualstudio.com/items?itemName=Eyaa.vue-swift-i18n-plus#overview",
+			"https://marketplace.visualstudio.com/items?itemName=Eyaa.localesail-for-vue-i18n#overview",
 		target: "_blank"
 	},
 	{

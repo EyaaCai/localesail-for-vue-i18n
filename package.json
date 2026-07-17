@@ -1,5 +1,5 @@
 {
-  "name": "vue-swift-i18n-plus",
+  "name": "localesail-for-vue-i18n",
   "displayName": "LocaleSail for Vue i18n",
   "description": "Migrate Chinese Vue and TypeScript UI copy to vue-i18n keys, then organize locale JSON as split JS or TS modules.",
   "publisher": "Eyaa",
@@ -48,11 +48,11 @@
         "title": "LocaleSail: Extract Chinese Copy"
       },
       {
-        "command": "localeSail.generateRichieRC",
+        "command": "localeSail.generateWorkspaceConfig",
         "title": "LocaleSail: Create Workspace Configuration"
       },
       {
-        "command": "localeSail.swiftI18n",
+        "command": "localeSail.replaceWithI18nKeys",
         "title": "LocaleSail: Replace Copy with i18n Keys",
         "icon": {
           "light": "./icon-light.svg",
@@ -152,7 +152,7 @@
     },
     "keybindings": [
       {
-        "command": "localeSail.generateRichieRC",
+        "command": "localeSail.generateWorkspaceConfig",
         "key": "ctrl+alt+g",
         "mac": "ctrl+cmd+g",
         "when": "editorTextFocus"
@@ -164,7 +164,7 @@
         "when": "editorTextFocus"
       },
       {
-        "command": "localeSail.swiftI18n",
+        "command": "localeSail.replaceWithI18nKeys",
         "key": "ctrl+alt+i",
         "mac": "ctrl+cmd+i",
         "when": "editorTextFocus"
@@ -195,17 +195,17 @@
         },
         {
           "when": "editorFocus &&  resourceLangId == javascript",
-          "command": "localeSail.generateRichieRC",
+          "command": "localeSail.generateWorkspaceConfig",
           "group": "1_modification@5"
         },
         {
           "when": "editorFocus &&  resourceLangId == typescript",
-          "command": "localeSail.generateRichieRC",
+          "command": "localeSail.generateWorkspaceConfig",
           "group": "1_modification@5"
         },
         {
           "when": "editorFocus &&  resourceLangId == vue",
-          "command": "localeSail.generateRichieRC",
+          "command": "localeSail.generateWorkspaceConfig",
           "group": "1_modification@5"
         },
         {
@@ -225,17 +225,17 @@
         },
         {
           "when": "editorFocus &&  resourceLangId == javascript",
-          "command": "localeSail.swiftI18n",
+          "command": "localeSail.replaceWithI18nKeys",
           "group": "1_modification@7"
         },
         {
           "when": "editorFocus &&  resourceLangId == typescript",
-          "command": "localeSail.swiftI18n",
+          "command": "localeSail.replaceWithI18nKeys",
           "group": "1_modification@7"
         },
         {
           "when": "editorFocus &&  resourceLangId == vue",
-          "command": "localeSail.swiftI18n",
+          "command": "localeSail.replaceWithI18nKeys",
           "group": "1_modification@7"
         },
         {
@@ -256,7 +256,7 @@
       ],
       "explorer/context": [
         {
-          "command": "localeSail.generateRichieRC",
+          "command": "localeSail.generateWorkspaceConfig",
           "when": "resourceLangId == vue",
           "group": "1_modification@5"
         },
@@ -266,12 +266,12 @@
           "group": "1_modification@6"
         },
         {
-          "command": "localeSail.generateRichieRC",
+          "command": "localeSail.generateWorkspaceConfig",
           "when": "resourceLangId == typescript",
           "group": "1_modification@5"
         },
         {
-          "command": "localeSail.generateRichieRC",
+          "command": "localeSail.generateWorkspaceConfig",
           "when": "resourceLangId == javascript",
           "group": "1_modification@5"
         },
@@ -291,17 +291,17 @@
           "group": "1_modification@6"
         },
         {
-          "command": "localeSail.swiftI18n",
+          "command": "localeSail.replaceWithI18nKeys",
           "when": "resourceLangId == vue",
           "group": "1_modification@7"
         },
         {
-          "command": "localeSail.swiftI18n",
+          "command": "localeSail.replaceWithI18nKeys",
           "when": "resourceLangId == typescript",
           "group": "1_modification@7"
         },
         {
-          "command": "localeSail.swiftI18n",
+          "command": "localeSail.replaceWithI18nKeys",
           "when": "resourceLangId == javascript",
           "group": "1_modification@7"
         },

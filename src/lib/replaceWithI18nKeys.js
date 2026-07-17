@@ -241,7 +241,7 @@ module.exports = ({ editor, context }) => {
         .then((success) => {
           if (success) {
             showMessage({
-              message: `${operation.swiftI18n.title} success with \'${prefix}\' in ${localesPath}!`,
+              message: `${operation.replaceWithI18nKeys.title} success with \'${prefix}\' in ${localesPath}!`,
               needOpen: false,
               callback: {
                 func: () => executeCommand(operation.showI18n.cmd),

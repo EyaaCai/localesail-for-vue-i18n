@@ -100,8 +100,8 @@ const updateDecorations = (currentEditor, { showNotice = true } = {}) => {
 					editor: currentEditor,
 					file: localesPath,
 					callback: {
-						func: () => executeCommand(operation.swiftI18n.cmd),
-						name: operation.swiftI18n.title
+						func: () => executeCommand(operation.replaceWithI18nKeys.cmd),
+						name: operation.replaceWithI18nKeys.title
 					}
 				});
 			} else {

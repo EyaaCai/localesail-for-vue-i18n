@@ -109,10 +109,10 @@
 
   -**`Generate I18n Files Ext`**，默认 `auto`，拆分 i18n 文件后缀，可选 `auto`、`js`、`ts`
 
-### 3. richierc.json
+### 3. localesailrc.json
 
-- 可通过 **Generate scope config file** 生成项目级配置文件 `richierc.json`
+- 可通过 **LocaleSail: Create Workspace Configuration** 生成项目级配置文件 `localesailrc.json`
 
--`richierc.json` 优先级高于 VSCode 全局配置
+-`localesailrc.json` 优先级高于 VSCode 全局配置
 
--`richierc.json` 每次执行命令或触发 hover 时都会重新读取，不需要重启扩展
+-`localesailrc.json` 每次执行命令或触发 hover 时都会重新读取，不需要重启扩展

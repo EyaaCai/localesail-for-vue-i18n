@@ -10,7 +10,7 @@ const writeData = (fsPath, data, currentEditor) => {
 	fs.writeFile(fsPath, data, (err) => {
 		if (!err) {
 			showMessage({
-				message: `${operation.generateRichieRC.title} Success : ${fsPath}`,
+				message: `${operation.generateWorkspaceConfig.title} Success : ${fsPath}`,
 				file: fsPath,
 				editor: currentEditor
 			});
@@ -30,7 +30,7 @@ module.exports = ({ editor, context }) => {
 			.info(
 				`Whether to read the local vscode setting to ${overwrite
 					? 'overwrite'
-					: 'generate'} 'richierc.json' ( highest priority) file?`,
+					: 'generate'} '${customConfigFileName}' ( highest priority) file?`,
 				{ modal: true },
 				'No, use default',
 				'Yes, read vscode settings'

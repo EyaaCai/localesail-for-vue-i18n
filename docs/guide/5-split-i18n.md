@@ -1,4 +1,4 @@
-# 拆分国际化文件 (Generate Split I18n Files)
+# 拆分国际化文件 (LocaleSail: Build Split Locale Modules)
 
 在大型项目中，如果所有的国际化文案都挤在一个巨大的 JSON 文件里，维护起来会非常痛苦。且一旦多人协作修改同一个 JSON，极易引发代码冲突。
 
@@ -17,7 +17,7 @@ LocaleSail 提供了可增量执行的**智能拆分功能**。
 ## 如何使用
 
 1. 打开项目的 `zh-cn.json`（或你配置的主语言包文件）。
-2. 在编辑器内右键，选择 **"Generate Split I18n Files"**。
+2. 在编辑器内右键，选择 **LocaleSail: Build Split Locale Modules**。
 3. 插件会根据配置的 `generateI18nFilesOutputDir` 路径自动生成/更新拆分后的文件。
 4. 生成和格式化都成功后，源 JSON 会自动清空，方便继续下一轮提取。
 

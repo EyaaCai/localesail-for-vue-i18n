@@ -1,12 +1,12 @@
 const { msg } = require('./utils/vs');
 const { plugin } = require('./utils/constant');
-const swiftI18n = require('./swiftI18n');
+const replaceWithI18nKeys = require('./replaceWithI18nKeys');
 const showI18n = require('./showI18n');
 const flatJson = require('./flatJson');
 const updateI18n = require('./updateI18n');
 const hoverI18n = require('./hoverI18n');
 const openI18nFile = require('./openI18nFile');
-const generateRichieRC = require('./generateRichieRC');
+const generateWorkspaceConfig = require('./generateWorkspaceConfig');
 const generateI18nFiles = require('./generateI18nFiles');
 
 function activate(context) {
@@ -19,7 +19,7 @@ function activate(context) {
 	flatJson(context, true);
 
 	// i18n replace
-	swiftI18n(context);
+	replaceWithI18nKeys(context);
 
 	// show i18n replace detail
 	showI18n(context);
@@ -33,8 +33,8 @@ function activate(context) {
 	// jump to i18n file
 	openI18nFile(context);
 
-	// generate config file : richierc.json
-	generateRichieRC(context);
+	// generate workspace config file
+	generateWorkspaceConfig(context);
 
 	// generate split i18n files
 	generateI18nFiles(context);

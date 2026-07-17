@@ -25,6 +25,7 @@ LocaleSail preserves template interpolation values as i18n parameters, supports 
 4. Review the generated locale JSON, then run **LocaleSail: Replace Copy with i18n Keys**.
 
 Release 0.2.0 introduces the independent `localeSail.*` settings namespace. Settings saved under the pre-0.2 namespace must be entered again with the new keys.
+Workspace-level settings are now generated as `localesailrc.json`; existing `richierc.json` files remain supported as a compatibility fallback.
 
 ## Commands
 

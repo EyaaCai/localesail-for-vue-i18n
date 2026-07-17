@@ -15,7 +15,9 @@ This document maps every item requested by VS Marketplace Support to its impleme
 | Issue URL                      | Old repository issue tracker                           | `https://github.com/EyaaCai/localesail-for-vue-i18n/issues`                                                                                | `package.json` -> `bugs.url`                                             |
 | Icon                           | Upstream-style black globe                             | Original LocaleSail sail-and-locale-path mark                                                                                                | `icon.png`, `icon-source.svg`, `icon-light.svg`, and `icon-dark.svg` |
 | Overview                       | Short “enhanced fork” summary                        | New workflow-led product overview, command table, Chinese-documentation link, project links, migration note, and transparent lineage section | `README.md`                                                                |
-| Command and settings namespace | `vueSwiftI18nPlus.*`                                 | `localeSail.*`                                                                                                                             | `package.json`, `src/utils/constant.js`, and `src/utils/index.js`      |
+| Extension identifier           | `Eyaa.vue-swift-i18n-plus`                            | `Eyaa.localesail-for-vue-i18n`                                                                                                             | `package.json` -> `publisher` + `name`                                  |
+| Command and settings namespace | `vueSwiftI18nPlus.*`                                 | `localeSail.*` with LocaleSail command names and compatibility aliases for 0.2.0 IDs                                                       | `package.json`, `src/utils/constant.js`, and `src/utils/index.js`      |
+| Workspace config file          | `richierc.json`                                      | `localesailrc.json`, with `richierc.json` still read as a compatibility fallback                                                           | `src/utils/constant.js`, `src/utils/index.js`                           |
 
 ## Icon proof
 
@@ -26,7 +28,7 @@ This document maps every item requested by VS Marketplace Support to its impleme
 
 ## Identifier note
 
-The Marketplace extension identifier remains unchanged only so release 0.2.0 can update the suspended listing. The command IDs and configuration keys now use the independent `localeSail.*` namespace, and all user-facing command titles, settings, documentation, iconography, and project links use LocaleSail.
+The Marketplace extension identifier is now `Eyaa.localesail-for-vue-i18n`. The command IDs and configuration keys use the independent `localeSail.*` namespace, user-facing command names use LocaleSail terminology, and legacy 0.2.0 command IDs remain registered only as compatibility aliases.
 
 ## Required external steps
 
@@ -38,8 +40,8 @@ The Marketplace extension identifier remains unchanged only so release 0.2.0 can
 ## Release verification
 
 - Extension production build: passed with webpack 4.47.0.
-- Documentation static build: passed with VuePress 1.9.10.
-- VS Code integration tests: 13 passing on VS Code 1.118.1.
-- VSIX: `release/localesail-for-vue-i18n-0.2.0.vsix` (71,288 bytes).
-- VSIX SHA-256: `9BE1AE76D0398F4880B7936BAD1AE4C191D5DAFFA1A9F81F3FE7AF8CF8D39B02`.
+- Documentation static build: not rerun during this migration pass.
+- VS Code integration tests: not completed because `vscode-test` could not resolve the VS Code archive location after network access was allowed.
+- VSIX: `release/localesail-for-vue-i18n-0.2.0.vsix` (71,511 bytes).
+- VSIX SHA-256: `4A078AC795072E907696CE49A2646B08026059872E14CDDFC1635950F7A1D120`.
 - The packaged manifest, README, extension bundle, and new icon were inspected directly from the VSIX archive.

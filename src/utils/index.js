@@ -26,6 +26,7 @@ const {
   langArr,
   operation,
   customConfigFileName,
+  deprecatedCustomConfigFileNames,
   pkgFileName,
 } = require('./constant');
 const isObject = (obj) =>
@@ -37,6 +38,15 @@ const getCustomSettingKey = (customSetting, key) => {
   }
   const settings = workspace.getConfiguration('localeSail');
   return settings.get(key);
+};
+
+const getCustomConfigPath = (dirName) => {
+  const candidates = [
+    customConfigFileName,
+    ...deprecatedCustomConfigFileNames,
+  ].map((fileName) => path.join(dirName, fileName));
+
+  return candidates.find((filePath) => fs.existsSync(filePath)) || candidates[0];
 };
 
 const showMessage = ({
@@ -79,7 +89,7 @@ const showMessage = ({
 const getCustomSetting = (fsPath, key, forceIgnoreCustomSetting = false) => {
   const dirName = path.dirname(fsPath);
   if (fs.existsSync(path.join(dirName, pkgFileName))) {
-    const customPath = path.join(dirName, customConfigFileName);
+    const customPath = getCustomConfigPath(dirName);
     const data =
       fs.existsSync(customPath) && !forceIgnoreCustomSetting
         ? fs.readFileSync(customPath)

@@ -288,7 +288,7 @@ suite('Extension Test Suite', () => {
 		);
 	});
 
-	test('Generated richierc contains every contributed configuration key', () => {
+	test('Generated workspace config contains every contributed configuration key', () => {
 		const contributedKeys = Object.keys(
 			packageJson.contributes.configuration.properties
 		).map((key) => key.replace('localeSail.', ''));

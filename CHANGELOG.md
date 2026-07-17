@@ -5,6 +5,7 @@
 - **Independent Brand**: Renamed the user-facing extension to `LocaleSail for Vue i18n` with a new description, overview, command labels, documentation identity, and original icon family.
 - **Project Links**: Moved repository, homepage, and issue metadata to the distinct `EyaaCai/localesail-for-vue-i18n` URL.
 - **Independent Namespace**: Replaced the previous command and configuration prefixes with `localeSail.*`; settings saved by pre-0.2 releases must be entered again under the new keys.
+- **Workspace Config**: Renamed the generated workspace config file to `localesailrc.json`; existing `richierc.json` files are still read for compatibility.
 
 ## 0.1.4
 

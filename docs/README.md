@@ -4,7 +4,7 @@ LocaleSail 是一个面向 Vue 与 TypeScript 项目的 vue-i18n 工作台，用
 
 ```bash
 # VS Code Quick Open (Ctrl+P)
-ext install Eyaa.vue-swift-i18n-plus
+ext install Eyaa.localesail-for-vue-i18n
 ```
 
 ## 主要工作流

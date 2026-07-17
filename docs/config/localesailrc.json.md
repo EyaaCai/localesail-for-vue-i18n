@@ -6,7 +6,7 @@
 
 ## 配置详情
 
-`richierc.json`中的所有配置见[配置列表](/config/)
+`localesailrc.json`中的所有配置见[配置列表](/config/)
 
 ```json
 {

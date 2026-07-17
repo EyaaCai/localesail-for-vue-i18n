@@ -15,7 +15,7 @@ module.exports = {
 				{
 					title: "深入",
 					path: "../guide",
-					children: ["1-update-i18n", "2-swift-i18n", "3-show-i18n", "4-other", "5-split-i18n"],
+					children: ["1-update-i18n", "2-replace-i18n", "3-show-i18n", "4-other", "5-split-i18n"],
 				},
 			]),
 			"/config/": getAutoSideBar([{ title: "配置", path: "../config" }]),

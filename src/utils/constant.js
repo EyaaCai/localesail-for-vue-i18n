@@ -25,11 +25,16 @@ const constants = {
       cmd: 'localeSail.updateI18n',
       title: 'Extract Chinese Copy',
     },
-    generateRichieRC: {
-      cmd: 'localeSail.generateRichieRC',
+    generateWorkspaceConfig: {
+      cmd: 'localeSail.generateWorkspaceConfig',
+      aliases: ['localeSail.generateRichieRC'],
       title: 'Create Workspace Configuration',
     },
-    swiftI18n: { cmd: 'localeSail.swiftI18n', title: 'Replace Copy with i18n Keys' },
+    replaceWithI18nKeys: {
+      cmd: 'localeSail.replaceWithI18nKeys',
+      aliases: ['localeSail.swiftI18n'],
+      title: 'Replace Copy with i18n Keys',
+    },
     hoverI18n: { cmd: 'localeSail.hoverI18n', title: 'Hover I18n' },
     openI18nFile: { cmd: 'localeSail.openI18nFile', title: 'Open Locale Source' },
     generateI18nFiles: { cmd: 'localeSail.generateI18nFiles', title: 'Build Split Locale Modules' },
@@ -59,6 +64,7 @@ const constants = {
   },
 
   pkgFileName: 'package.json',
-  customConfigFileName: 'richierc.json',
+  customConfigFileName: 'localesailrc.json',
+  deprecatedCustomConfigFileNames: ['richierc.json'],
 };
 module.exports = constants;

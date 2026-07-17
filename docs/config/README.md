@@ -34,7 +34,7 @@
 
 - 类型：`string`
 - 默认值：`""`
-- 描述：更新国际化 JSON 时以此前缀当做模块前缀，默认为空，当一个项目有多个 vue 模块，每个模块都有对应的国际化需求时，推荐使用单独的配置文件[richierc.json]()。
+- 描述：更新国际化 JSON 时以此前缀当做模块前缀，默认为空。当一个项目有多个 vue 模块，且每个模块都有独立国际化需求时，推荐使用项目级配置文件 [localesailrc.json](/config/localesailrc.json)。
 
 ## notAlertBeforeUpdateI18n
 

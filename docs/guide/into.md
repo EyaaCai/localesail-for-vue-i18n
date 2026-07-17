@@ -12,7 +12,7 @@
 ## 功能指南
 
 - [提取中文文案](../guide/1-update-i18n.md)
-- [替换为 i18n key](../guide/2-swift-i18n.md)
+- [替换为 i18n key](../guide/2-replace-i18n.md)
 - [预览翻译值](../guide/3-show-i18n.md)
 - [拆分 locale 模块](../guide/5-split-i18n.md)
 - [JSON 与代码提示工具](../guide/4-other.md)
