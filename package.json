@@ -303,6 +303,8 @@
   },
   "scripts": {
     "test": "node ./test/runTest.js",
+    "package": "npm run package:vsix",
+    "package:vsix": "node ./scripts/package-vsix.mjs",
     "docs:dev": "vuepress dev docs",
     "docs:build": "vuepress build docs --dest=/www/wwwroot/localesail-for-vue-i18n/dist",
     "vscode:prepublish": "webpack --mode production",
