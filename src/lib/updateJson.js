@@ -20,12 +20,12 @@ const {
 } = require("../utils/vs");
 
 const tipBeforeWriteJson = (currentEditor, localesPath) => {
-	const { notAlertBeforeUpdateI18n, puidType } = getCustomSetting(
+	const { notAlertBeforeUpdateI18n, puidType, hashLength } = getCustomSetting(
 		currentEditor.document.uri.fsPath,
-		["notAlertBeforeUpdateI18n", "puidType"]
+		["notAlertBeforeUpdateI18n", "puidType", "hashLength"]
 	);
 	if (notAlertBeforeUpdateI18n) {
-		writeJson(currentEditor, localesPath, puidType);
+		writeJson(currentEditor, localesPath, { puidType, hashLength });
 	} else {
 		msg
 			.info(
@@ -43,13 +43,12 @@ const tipBeforeWriteJson = (currentEditor, localesPath) => {
 					});
 				}
 				if (result === "OK") {
-					writeJson(currentEditor, localesPath, puidType);
+					writeJson(currentEditor, localesPath, { puidType, hashLength });
 				}
 			});
 	}
 };
-const writeJson = (currentEditor, localesPath, puidType) => {
-	const linesObj = retrieveCN(currentEditor, puidType);
+const writeJson = (currentEditor, localesPath, keyOptions) => {
 	const prefix = getPrefix(currentEditor);
 	const { useCompactPathMode } = getCustomSetting(
 		currentEditor.document.uri.fsPath,
@@ -66,6 +65,10 @@ const writeJson = (currentEditor, localesPath, puidType) => {
 
 		let temp = _data[prefix] ||
 			(useCompactPathMode ? null : getValueFromDotString(_data, prefix));
+		const linesObj = retrieveCN(currentEditor, {
+			...keyOptions,
+			existingKeys: temp ? Object.keys(temp) : []
+		});
 
 		if (Object.keys(linesObj).length !== 0) {
 			//已存在 => 智能替换（1.相同val时，新的key,val替换原来的key,val。2.不同val时，保存新增key,val和原有的key,val,）

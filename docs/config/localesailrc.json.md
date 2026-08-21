@@ -15,6 +15,7 @@
   "fileNameSubstitute": "components",
   "generateI18nFilesExt": "auto",
   "generateI18nFilesOutputDir": "src/i18n/lang/zh-cn",
+  "hashLength": 8,
   "i18nValueHover": true,
   "langFile": "zh-cn.json",
   "modulePrefixFoUpdateJson": "",

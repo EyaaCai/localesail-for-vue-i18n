@@ -17,10 +17,17 @@ const {
 	getI18nText,
 	getTemplateInterpolationArgs,
 	getTemplateInterpolationLiteralTexts,
+	getVueTemplateDynamicAttributeLineState,
+	getVueTemplateInterpolationLineState,
+	getVueTemplateLiteralTexts,
 	resolveTemplateInterpolationArg,
 	getVueTemplateInterpolationArgs
 } = require('../../src/utils/interpolation');
 const retrieveCN = require('../../src/utils/retrieveCN');
+const {
+	getExistingTranslateFunc,
+	getTranslateFunc,
+} = require('../../src/lib/replaceWithI18nKeys')._private;
 const { isMixinFile } = require('../../src/utils');
 const { getLocaleValueByKey } = require('../../src/utils');
 const { defaultConfig } = require('../../src/utils/constant');
@@ -106,6 +113,111 @@ suite('Extension Test Suite', () => {
 		]);
 	});
 
+	test('Disable next line comments skip extraction for the following line', () => {
+		const editor = createEditor(
+			[
+				'<template>',
+				'  <!-- localesail-disable-next-line -->',
+				'  <div>\u8df3\u8fc7\u6211</div>',
+				'  <div>\u4fdd\u7559\u6211</div>',
+				'</template>',
+			].join('\n'),
+			'vue'
+		);
+		assert.deepStrictEqual(Object.values(retrieveCN(editor, 'short')), [
+			'\u4fdd\u7559\u6211',
+		]);
+	});
+
+	test('Generated hash key length is configurable', () => {
+		const editor = createEditor(
+			[
+				'<template>',
+				'  <div>\u4f60\u597d</div>',
+				'  <div>\u4e16\u754c</div>',
+				'</template>',
+			].join('\n'),
+			'vue'
+		);
+		assert.deepStrictEqual(
+			Object.keys(retrieveCN(editor, { puidType: 'short', hashLength: 8 }))
+				.map((key) => key.length),
+			[8, 8]
+		);
+		assert.deepStrictEqual(
+			Object.keys(retrieveCN(editor, { puidType: 'short', hashLength: 3 }))
+				.map((key) => key.length),
+			[6, 6]
+		);
+	});
+
+	test('Bound attribute expressions are not extracted as template text', () => {
+		const ternaryLine = `          :title="isAdd ? '\u6dfb\u52a0' : '\u5220\u9664'"`;
+		const i18nArgsLine =
+			`          :title="t('5zmpjxrt99s0', ['\u54c8\u55bd'])"`;
+		assert.strictEqual(ternaryLine.match(angleBracketSpaceRegexp), null);
+		assert.strictEqual(i18nArgsLine.match(angleBracketSpaceRegexp), null);
+		assert.deepStrictEqual(ternaryLine.match(scriptRegexp), [
+			"'\u6dfb\u52a0'",
+			"'\u5220\u9664'",
+		]);
+		assert.deepStrictEqual(i18nArgsLine.match(scriptRegexp), [
+			"'\u54c8\u55bd'",
+		]);
+
+		const editor = createEditor(
+			[
+				'<template>',
+				'  <el-button',
+				ternaryLine,
+				'  />',
+				'  <el-button',
+				i18nArgsLine,
+				'  />',
+				'</template>',
+			].join('\n'),
+			'vue'
+		);
+		assert.deepStrictEqual(Object.values(retrieveCN(editor, 'short')).sort(), [
+			'\u5220\u9664',
+			'\u54c8\u55bd',
+			'\u6dfb\u52a0',
+		].sort());
+	});
+
+	test('Multiline bound attribute expressions are not extracted as template text', () => {
+		const source = [
+			'<template>',
+			'  <el-button',
+			'    :title="',
+			'      a',
+			"        ? '\u4f60\u597d'",
+			"        : '\u4e16\u754c'",
+			'    "',
+			'  />',
+			'</template>',
+		];
+		let state = getVueTemplateDynamicAttributeLineState(source[2], null);
+		assert.strictEqual(state.inDynamicAttributeLine, true);
+		state = getVueTemplateDynamicAttributeLineState(source[4], state.nextActiveQuote);
+		assert.strictEqual(state.inDynamicAttributeLine, true);
+		assert.deepStrictEqual(source[4].match(scriptRegexp), ["'\u4f60\u597d'"]);
+		assert.strictEqual(state.suppressTemplateText, true);
+		assert.strictEqual(
+			getVueTemplateDynamicAttributeLineState(
+				'          <strong v-if="!isEdit">\u901a\u884c\u8bc1{{ index + 1 }}</strong>',
+				null,
+			).suppressTemplateText,
+			false
+		);
+
+		const editor = createEditor(source.join('\n'), 'vue');
+		assert.deepStrictEqual(Object.values(retrieveCN(editor, 'short')).sort(), [
+			'\u4e16\u754c',
+			'\u4f60\u597d',
+		].sort());
+	});
+
 	test('Template expressions with Chinese remain script matches', () => {
 		const mixed = 'english \u4e2d\u6587';
 		const lineText = `<span>{{ test ? "${mixed}" : "" }}</span>`;
@@ -113,15 +225,40 @@ suite('Extension Test Suite', () => {
 		assert.deepStrictEqual(lineText.match(scriptRegexp), [`"${mixed}"`]);
 	});
 
-	test('Vue template text with interpolation is normalized as i18n params', () => {
+	test('Multiline Vue interpolation expressions are not extracted as template text', () => {
+		const source = [
+			'<template>',
+			'  <div>',
+			'    {{',
+			'      IS_XIONGYITONG_MODE',
+			"        ? '\u4f60\u731c'",
+			"        : '\u4e0d\u5bf9'",
+			'    }}',
+			'  </div>',
+			'</template>',
+		];
+		let state = getVueTemplateInterpolationLineState(source[2], false);
+		assert.strictEqual(state.inInterpolationLine, true);
+		state = getVueTemplateInterpolationLineState(source[4], state.nextInInterpolation);
+		assert.strictEqual(state.inInterpolationLine, true);
+		assert.deepStrictEqual(source[4].match(scriptRegexp), ["'\u4f60\u731c'"]);
+
+		const editor = createEditor(source.join('\n'), 'vue');
+		assert.deepStrictEqual(Object.values(retrieveCN(editor, 'short')).sort(), [
+			'\u4e0d\u5bf9',
+			'\u4f60\u731c',
+		].sort());
+	});
+
+	test('Vue template text with interpolation extracts static copy only', () => {
 		const text = '\u53d1\u8fd0\u5355\u53f7\uff1a{{ detail.carriageId }}';
 		assert.deepStrictEqual(
 			`<div>${text}</div>`.match(angleBracketSpaceRegexp),
 			[text]
 		);
-		assert.strictEqual(
-			getI18nText(text, spaceRegexp, { vueTemplate: true }),
-			'\u53d1\u8fd0\u5355\u53f7\uff1a{0}'
+		assert.deepStrictEqual(
+			getVueTemplateLiteralTexts(text),
+			['\u53d1\u8fd0\u5355\u53f7\uff1a']
 		);
 		assert.deepStrictEqual(
 			getVueTemplateInterpolationArgs(text),
@@ -133,7 +270,7 @@ suite('Extension Test Suite', () => {
 		);
 	});
 
-	test('Update I18n extracts template text around Vue interpolations', () => {
+	test('Update I18n extracts static template text around Vue interpolations', () => {
 		const source = [
 			'<template>',
 			'  <div class="ship-order-sn">\u53d1\u8fd0\u5355\u53f7\uff1a{{ detail.carriageId }}</div>',
@@ -164,8 +301,8 @@ suite('Extension Test Suite', () => {
 		assert.deepStrictEqual(values, [
 			'+ \u65b0\u589e\u901a\u884c\u8bc1',
 			'\u5220\u9664',
-			'\u53d1\u8fd0\u5355\u53f7\uff1a{0}',
-			'\u901a\u884c\u8bc1{0}',
+			'\u53d1\u8fd0\u5355\u53f7\uff1a',
+			'\u901a\u884c\u8bc1',
 		].sort());
 	});
 
@@ -257,6 +394,41 @@ suite('Extension Test Suite', () => {
 				text: 'export const greet = () => "\u4f60\u597d";'
 			}),
 			false
+		);
+	});
+
+	test('Replace I18n reuses existing translate function style', () => {
+		assert.strictEqual(
+			getExistingTranslateFunc("const title = $t('common.title')"),
+			'$t'
+		);
+		assert.strictEqual(
+			getExistingTranslateFunc("const { t: tt } = useI18n(); tt('common.title')"),
+			'tt'
+		);
+		assert.strictEqual(
+			getExistingTranslateFunc("const { t } = useI18n(); t('common.title')"),
+			't'
+		);
+		assert.strictEqual(
+			getTranslateFunc({
+				isSetup: true,
+				isTS: false,
+				isScript: true,
+				isMixinFile: false,
+				existingTranslateFunc: '$t',
+			}),
+			'$t'
+		);
+		assert.strictEqual(
+			getTranslateFunc({
+				isSetup: true,
+				isTS: false,
+				isScript: true,
+				isMixinFile: false,
+				existingTranslateFunc: null,
+			}),
+			't'
 		);
 	});
 

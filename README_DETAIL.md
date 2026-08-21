@@ -35,6 +35,7 @@
 - 汉字检索原则 3，**汉字**替换为 **`$t('unique-key')`**
 - 汉字检索原则 4，**汉字**替换为 **`this.$t('unique-key')`**，在 mixin 文件中也会优先使用这个写法
 - TypeScript、`<script setup>` 场景会优先替换为 **`t('unique-key')`**
+- 如果当前文件里已经存在 **`$t(...)`**、**`this.$t(...)`**、**`i18n.t(...)`**、**`t(...)`** 或 **`const { t: tt } = useI18n()`** 这类调用，替换时会优先复用已有函数名，避免替换成当前文件未定义的 `t`
 - 模板字符串中的插值会转换为 i18n 参数，例如 **`` `本次共打印${count}个订单` ``** 会提取为 **`本次共打印{0}个订单`**，并替换为 **`t('unique-key', [count])`**；如果插值表达式里还包含中文兜底文本，也会单独提取
 
 ### 2. 相关正则，见[源码](https://github.com/EyaaCai/localesail-for-vue-i18n/blob/master/src/utils/regex.js)

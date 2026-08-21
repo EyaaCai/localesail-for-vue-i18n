@@ -28,7 +28,13 @@
 
 - 类型：`string`
 - 默认值：`short`
-- 描述：为国际化 JSON 的 value 生成唯一 key 的类型，默认为 short，长度为 12，一般不需要配置。
+- 描述：为国际化 JSON 的 value 生成唯一 key 的基础类型，默认为 short。通常保持默认即可。
+
+## hashLength
+
+- 类型：`number`
+- 默认值：`8`
+- 描述：生成 Hash Key 的长度，支持 `6` 到 `24`。推荐默认 `8` 位，足够短且适合大多数项目；大型项目或非常保守的团队可设置为 `10` 或 `12`。
 
 ## modulePrefixFoUpdateJson
 
@@ -94,6 +100,20 @@
 - 类型：`string (auto | js | ts)`
 - 默认值：`auto`
 - 描述：生成拆分文件的后缀名。设置为 `auto` 时将根据项目根目录是否存在 `tsconfig.json` 自动识别。
+
+## localesail-disable-next-line
+
+在不希望自动提取或替换下一行文案时，可以添加忽略注释：
+
+```vue
+<!-- localesail-disable-next-line -->
+<div>这行不会被提取</div>
+```
+
+```js
+// localesail-disable-next-line
+const text = '这行不会被提取';
+```
 
 ::: tip 提示
 在 VSCode 的设置面板中，所有配置项均以 `localeSail.` 作为前缀。

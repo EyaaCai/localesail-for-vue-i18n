@@ -12,7 +12,7 @@
     "i18n",
     "developer-tool"
   ],
-  "version": "0.2.0",
+  "version": "0.3.0",
   "engines": {
     "vscode": "^1.37.1"
   },
@@ -50,6 +50,10 @@
       {
         "command": "localeSail.generateWorkspaceConfig",
         "title": "LocaleSail: Create Workspace Configuration"
+      },
+      {
+        "command": "localeSail.ignoreNextLine",
+        "title": "LocaleSail: Ignore Next Line"
       },
       {
         "command": "localeSail.replaceWithI18nKeys",
@@ -92,6 +96,13 @@
           "type": "string",
           "default": "short",
           "description": "Generate 'long' (24-byte) or 'short' (12-byte) random IDs as keys. / 选择生成长（24位）或短（12位）随机 ID 作为 Key (默认 'short')。"
+        },
+        "localeSail.hashLength": {
+          "type": "number",
+          "default": 8,
+          "minimum": 6,
+          "maximum": 24,
+          "description": "Length of generated hash keys. 8 is recommended for short readable keys; use 10-12 for larger projects. / 生成 Hash Key 的长度，推荐 8 位；大型项目可设置为 10-12 位。"
         },
         "localeSail.fileNameSubstitute": {
           "type": "string",
@@ -176,149 +187,82 @@
         "when": "editorTextFocus"
       }
     ],
+    "submenus": [
+      {
+        "id": "localeSail.moreMenu",
+        "label": "LocaleSail"
+      }
+    ],
     "menus": {
       "editor/context": [
         {
-          "when": "editorFocus && resourceLangId == json",
-          "command": "localeSail.flatJson",
+          "when": "editorFocus && (resourceLangId == javascript || resourceLangId == typescript || resourceLangId == vue)",
+          "command": "localeSail.updateI18n",
           "group": "1_modification@6"
         },
         {
-          "when": "editorFocus && resourceLangId == json",
-          "command": "localeSail.unFlatJson",
-          "group": "1_modification@6"
+          "when": "editorFocus && (resourceLangId == javascript || resourceLangId == typescript || resourceLangId == vue)",
+          "command": "localeSail.replaceWithI18nKeys",
+          "group": "1_modification@7"
         },
         {
           "when": "editorFocus && resourceLangId == json",
           "command": "localeSail.generateI18nFiles",
-          "group": "1_modification@6"
-        },
-        {
-          "when": "editorFocus &&  resourceLangId == javascript",
-          "command": "localeSail.generateWorkspaceConfig",
-          "group": "1_modification@5"
-        },
-        {
-          "when": "editorFocus &&  resourceLangId == typescript",
-          "command": "localeSail.generateWorkspaceConfig",
-          "group": "1_modification@5"
-        },
-        {
-          "when": "editorFocus &&  resourceLangId == vue",
-          "command": "localeSail.generateWorkspaceConfig",
-          "group": "1_modification@5"
-        },
-        {
-          "when": "editorFocus &&  resourceLangId == javascript",
-          "command": "localeSail.updateI18n",
-          "group": "1_modification@6"
-        },
-        {
-          "when": "editorFocus &&  resourceLangId == typescript",
-          "command": "localeSail.updateI18n",
-          "group": "1_modification@6"
-        },
-        {
-          "when": "editorFocus &&  resourceLangId == vue",
-          "command": "localeSail.updateI18n",
-          "group": "1_modification@6"
-        },
-        {
-          "when": "editorFocus &&  resourceLangId == javascript",
-          "command": "localeSail.replaceWithI18nKeys",
-          "group": "1_modification@7"
-        },
-        {
-          "when": "editorFocus &&  resourceLangId == typescript",
-          "command": "localeSail.replaceWithI18nKeys",
-          "group": "1_modification@7"
-        },
-        {
-          "when": "editorFocus &&  resourceLangId == vue",
-          "command": "localeSail.replaceWithI18nKeys",
-          "group": "1_modification@7"
-        },
-        {
-          "when": "editorFocus && resourceLangId == vue",
-          "command": "localeSail.showI18n",
           "group": "1_modification@8"
         },
         {
-          "when": "editorFocus && resourceLangId == typescript",
-          "command": "localeSail.showI18n",
-          "group": "1_modification@8"
-        },
-        {
-          "when": "editorFocus && resourceLangId == javascript",
-          "command": "localeSail.showI18n",
-          "group": "1_modification@8"
+          "when": "editorFocus && (resourceLangId == javascript || resourceLangId == typescript || resourceLangId == vue || resourceLangId == json)",
+          "submenu": "localeSail.moreMenu",
+          "group": "1_modification@9"
         }
       ],
       "explorer/context": [
         {
-          "command": "localeSail.generateWorkspaceConfig",
-          "when": "resourceLangId == vue",
-          "group": "1_modification@5"
+          "command": "localeSail.updateI18n",
+          "when": "resourceLangId == javascript || resourceLangId == typescript || resourceLangId == vue",
+          "group": "1_modification@6"
+        },
+        {
+          "command": "localeSail.replaceWithI18nKeys",
+          "when": "resourceLangId == javascript || resourceLangId == typescript || resourceLangId == vue",
+          "group": "1_modification@7"
         },
         {
           "command": "localeSail.generateI18nFiles",
           "when": "resourceLangId == json",
-          "group": "1_modification@6"
+          "group": "1_modification@8"
         },
         {
+          "when": "resourceLangId == javascript || resourceLangId == typescript || resourceLangId == vue || resourceLangId == json",
+          "submenu": "localeSail.moreMenu",
+          "group": "1_modification@9"
+        }
+      ],
+      "localeSail.moreMenu": [
+        {
+          "when": "editorTextFocus && (resourceLangId == javascript || resourceLangId == typescript || resourceLangId == vue)",
+          "command": "localeSail.ignoreNextLine",
+          "group": "1_tools@1"
+        },
+        {
+          "when": "resourceLangId == javascript || resourceLangId == typescript || resourceLangId == vue",
+          "command": "localeSail.showI18n",
+          "group": "1_tools@2"
+        },
+        {
+          "when": "resourceLangId == javascript || resourceLangId == typescript || resourceLangId == vue",
           "command": "localeSail.generateWorkspaceConfig",
-          "when": "resourceLangId == typescript",
-          "group": "1_modification@5"
+          "group": "2_config@1"
         },
         {
-          "command": "localeSail.generateWorkspaceConfig",
-          "when": "resourceLangId == javascript",
-          "group": "1_modification@5"
+          "when": "resourceLangId == json",
+          "command": "localeSail.flatJson",
+          "group": "3_json@1"
         },
         {
-          "command": "localeSail.updateI18n",
-          "when": "resourceLangId == vue",
-          "group": "1_modification@6"
-        },
-        {
-          "command": "localeSail.updateI18n",
-          "when": "resourceLangId == typescript",
-          "group": "1_modification@6"
-        },
-        {
-          "command": "localeSail.updateI18n",
-          "when": "resourceLangId == javascript",
-          "group": "1_modification@6"
-        },
-        {
-          "command": "localeSail.replaceWithI18nKeys",
-          "when": "resourceLangId == vue",
-          "group": "1_modification@7"
-        },
-        {
-          "command": "localeSail.replaceWithI18nKeys",
-          "when": "resourceLangId == typescript",
-          "group": "1_modification@7"
-        },
-        {
-          "command": "localeSail.replaceWithI18nKeys",
-          "when": "resourceLangId == javascript",
-          "group": "1_modification@7"
-        },
-        {
-          "command": "localeSail.showI18n",
-          "when": "resourceLangId == vue",
-          "group": "1_modification@8"
-        },
-        {
-          "command": "localeSail.showI18n",
-          "when": "resourceLangId == typescript",
-          "group": "1_modification@8"
-        },
-        {
-          "command": "localeSail.showI18n",
-          "when": "resourceLangId == javascript",
-          "group": "1_modification@8"
+          "when": "resourceLangId == json",
+          "command": "localeSail.unFlatJson",
+          "group": "3_json@2"
         }
       ]
     },
@@ -402,5 +346,8 @@
     "type": "git",
     "url": "https://github.com/EyaaCai/localesail-for-vue-i18n.git"
   },
-  "homepage": "https://github.com/EyaaCai/localesail-for-vue-i18n#readme"
+  "homepage": "https://github.com/EyaaCai/localesail-for-vue-i18n#readme",
+  "volta": {
+    "node": "20.19.0"
+  }
 }

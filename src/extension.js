@@ -8,6 +8,7 @@ const hoverI18n = require('./hoverI18n');
 const openI18nFile = require('./openI18nFile');
 const generateWorkspaceConfig = require('./generateWorkspaceConfig');
 const generateI18nFiles = require('./generateI18nFiles');
+const ignoreNextLine = require('./ignoreNextLine');
 
 function activate(context) {
 	// register
@@ -38,6 +39,9 @@ function activate(context) {
 
 	// generate split i18n files
 	generateI18nFiles(context);
+
+	// insert ignore next line comment
+	ignoreNextLine(context);
 
 	msg.info(`${plugin.name} 已激活！`);
 }

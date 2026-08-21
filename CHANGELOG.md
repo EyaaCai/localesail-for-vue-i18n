@@ -1,5 +1,15 @@
 # Change Log
 
+## 0.3.0
+
+- **提取准确性增强**：优化 Vue template 提取逻辑，避免将动态属性表达式、已国际化函数调用、多行 `{{ }}` 插值表达式、多行动态属性值误提取成整段代码结构。
+- **静态文案提取优化**：Vue 文本插值现在只提取静态中文片段，例如 `发运单号：{{ detail.carriageId }}` 会提取为 `发运单号：`。
+- **忽略下一行**：新增 `LocaleSail: Ignore Next Line` 命令，并支持 `localesail-disable-next-line` 注释跳过下一行的提取和替换。
+- **可配置 Hash 长度**：新增 `localeSail.hashLength` 配置，默认生成 8 位 hash key，支持 6 到 24 位，并会避开当前 locale scope 下已有 key。
+- **替换风格复用**：替换源码时会优先复用当前文件已有的 `$t(...)`、`this.$t(...)`、`i18n.t(...)`、`t(...)` 或 `useI18n` 别名，避免 Vue 3 项目被强制替换成未定义的 `t(...)`。
+- **右键菜单整理**：保留提取、替换、生成拆分语言包为一级右键入口，低频功能收进 `LocaleSail` 子菜单。
+- **中文文档完善**：根 README 改为中文默认文档，补充安装、使用教程、提取规则、忽略注释、Hash 长度、按 key 路径生成拆分语言包等说明。
+
 ## 0.2.0
 
 - **Independent Brand**: Renamed the user-facing extension to `LocaleSail for Vue i18n` with a new description, overview, command labels, documentation identity, and original icon family.

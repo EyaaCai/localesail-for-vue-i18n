@@ -15,6 +15,8 @@ const scriptSetupRegexp = /<script[^>]*\ssetup\b[^>]*>/g;
 
 //只匹配单行注释，多行注释不考虑
 const commentRegexp = /(\/\/)|(<!--)|(\/\*)/g;
+const disableNextLineCommentRegexp =
+  /(?:\/\/|<!--|\/\*)\s*localesail-disable-next-line\b/;
 
 //匹配js中的汉字,配合template range 判断 是否是template中的js汉字
 const scriptRegexp =
@@ -29,8 +31,9 @@ const vueTemplateTextSource =
   `(?:${vueTemplateInterpolationSource}|[^<>{}\\r\\n])*` +
   `[^<>{}\\r\\n]*[\\u4e00-\\u9fa5][^<>{}\\r\\n]*` +
   `(?:${vueTemplateInterpolationSource}|[^<>{}\\r\\n])*`;
+const quotedAttributeValueSource = `(["'])(?:\\\\.|(?!\\1)[^\\r\\n])*\\1`;
 const vueTemplateAttributeSource =
-  `[:@#\\w.-]+\\s*=\\s*(?:["'][^"'\\r\\n]*["'])`;
+  `[:@#\\w.-]+\\s*=\\s*${quotedAttributeValueSource}`;
 
 // 单行  匹配 template ><下的汉字（retrieve），允许静态文本中夹带 Vue {{ }} 插值。
 const angleBracketSpaceRegexp = new RegExp(
@@ -84,6 +87,7 @@ module.exports = {
   spaceRegexp,
   firstSpaceRegexp,
   commentRegexp,
+  disableNextLineCommentRegexp,
   dollarTRegexp,
   getI18nKeyAtPosition,
   getI18nKeyMatches,

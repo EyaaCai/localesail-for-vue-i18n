@@ -30,6 +30,10 @@ const constants = {
       aliases: ['localeSail.generateRichieRC'],
       title: 'Create Workspace Configuration',
     },
+    ignoreNextLine: {
+      cmd: 'localeSail.ignoreNextLine',
+      title: 'Ignore Next Line',
+    },
     replaceWithI18nKeys: {
       cmd: 'localeSail.replaceWithI18nKeys',
       aliases: ['localeSail.swiftI18n'],
@@ -49,6 +53,7 @@ const constants = {
     defaultLocalesPath: 'src/locales',
     doNotDisturb: false,
     puidType: 'short',
+    hashLength: 8,
     i18nValueHover: true,
     langFile: 'zh-cn.json',
     modulePrefixFoUpdateJson: '',

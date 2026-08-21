@@ -11,6 +11,73 @@ const hasTemplateInterpolation = (str = '') =>
 const hasVueTemplateInterpolation = (str = '') =>
   /\{\{[^]*?\}\}/.test(str);
 
+const getVueTemplateInterpolationLineState = (
+  str = '',
+  isInInterpolation = false,
+) => {
+  let nextInInterpolation = isInInterpolation;
+  const tokenRegexp = /\{\{|\}\}/g;
+  let match;
+  tokenRegexp.lastIndex = 0;
+  while ((match = tokenRegexp.exec(str))) {
+    nextInInterpolation = match[0] === '{{';
+  }
+  tokenRegexp.lastIndex = 0;
+  return {
+    inInterpolationLine: isInInterpolation || nextInInterpolation,
+    nextInInterpolation,
+  };
+};
+
+const findClosingQuoteIndex = (str = '', quote, startIndex = 0) => {
+  for (let i = startIndex; i < str.length; i++) {
+    if (str[i] === '\\') {
+      i += 1;
+      continue;
+    }
+    if (str[i] === quote) return i;
+  }
+  return -1;
+};
+
+const getVueTemplateDynamicAttributeLineState = (
+  str = '',
+  activeQuote = null,
+) => {
+  let nextActiveQuote = activeQuote;
+  let inDynamicAttributeLine = Boolean(activeQuote);
+  let index = 0;
+  const dynamicAttributeRegexp =
+    /(?:^|\s)(?:(?::|@|#)[\w:.-]+|v-[\w-]+(?::[\w.-]+)?)\s*=\s*(["'])/g;
+
+  while (index < str.length) {
+    if (nextActiveQuote) {
+      const closeIndex = findClosingQuoteIndex(str, nextActiveQuote, index);
+      if (closeIndex === -1) break;
+      index = closeIndex + 1;
+      nextActiveQuote = null;
+      continue;
+    }
+
+    dynamicAttributeRegexp.lastIndex = index;
+    const match = dynamicAttributeRegexp.exec(str);
+    if (!match) break;
+    inDynamicAttributeLine = true;
+    nextActiveQuote = match[1];
+    index = match.index + match[0].length;
+  }
+  dynamicAttributeRegexp.lastIndex = 0;
+
+  return {
+    inDynamicAttributeLine,
+    nextActiveQuote,
+    suppressTemplateText:
+      Boolean(activeQuote) ||
+      Boolean(nextActiveQuote) ||
+      (inDynamicAttributeLine && !/[<>]/.test(str)),
+  };
+};
+
 const stripWrapperQuotes = (str = '') =>
   str.replace(/^["'`]|["'`]$/g, '');
 
@@ -76,6 +143,21 @@ const getVueTemplateInterpolationArgs = (str = '') => {
   return args;
 };
 
+const getVueTemplateLiteralTexts = (str = '') => {
+  if (!hasVueTemplateInterpolation(str)) return [];
+  const texts = [];
+  let lastIndex = 0;
+  let match;
+  vueTemplateInterpolationRegexp.lastIndex = 0;
+  while ((match = vueTemplateInterpolationRegexp.exec(str))) {
+    texts.push(str.slice(lastIndex, match.index).trim());
+    lastIndex = match.index + match[0].length;
+  }
+  texts.push(str.slice(lastIndex).trim());
+  vueTemplateInterpolationRegexp.lastIndex = 0;
+  return texts.filter((text) => /[\u4e00-\u9fa5]/.test(text));
+};
+
 const getI18nText = (str = '', resoloveReg, options = {}) => {
   if (hasTemplateInterpolation(str)) {
     return normalizeTemplateInterpolation(str);
@@ -101,8 +183,11 @@ module.exports = {
   getTemplateInterpolationLiteralTexts,
   resolveTemplateInterpolationArg,
   getVueTemplateInterpolationArgs,
+  getVueTemplateDynamicAttributeLineState,
   hasTemplateInterpolation,
   hasVueTemplateInterpolation,
+  getVueTemplateInterpolationLineState,
   normalizeTemplateInterpolation,
   normalizeVueTemplateInterpolation,
+  getVueTemplateLiteralTexts,
 };
