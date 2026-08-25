@@ -10,7 +10,7 @@ LocaleSail 是一个面向 Vue、JavaScript、TypeScript 项目的 VS Code 国�
 | --- | --- |
 | 提取中文文案 | 从 Vue template、属性、脚本字符串、TypeScript、模板字符串中提取中文 |
 | 替换源码文案 | 根据 locale JSON 把中文替换成 `$t(...)`、`this.$t(...)` 或 `t(...)` |
-| 预览翻译内容 | 在代码中查看 i18n key 对应的中文文案 |
+| 预览翻译内容 | 在当前打开文件中自动覆盖查看 i18n key 对应中文文案 |
 | 生成拆分语言包 | 将大型 JSON 拆成目录化的 JS/TS locale 模块 |
 | JSON 辅助处理 | 支持 locale JSON 扁平化与还原 |
 
@@ -146,7 +146,26 @@ tt('key')
 
 ### 4. 预览翻译值
 
-执行：
+默认会在当前打开文件中自动覆盖显示 i18n key 对应的翻译文案，例如：
+
+```text
+t('用户名称')
+```
+
+它只扫描当前编辑器，不需要等待全项目索引。插件会优先按 key 路径查找拆分语言包，也会回退到 `src/locales/zh-cn.json`。
+当展示结果来自 `defaultLocalesPath` 兜底时，会标记为 `[D]`，避免误以为该 key 已经生成到拆分目录。
+当光标或选区进入当前聚焦编辑器的某个 key 时，该 key 会临时还原为源码，方便直接编辑；非聚焦但仍可见的编辑器会继续保留覆盖预览。
+覆盖预览默认只显示一个语言；悬浮提示会展示所有可发现语言，并标出缺失翻译。
+
+如果要指定覆盖预览语言，可以配置：
+
+```json
+{
+  "localeSail.previewLocale": "en-us"
+}
+```
+
+如果需要手动强制刷新覆盖预览，也可以执行：
 
 ```text
 LocaleSail: Preview Translation Values
@@ -159,7 +178,30 @@ Windows: Ctrl+Alt+O
 macOS: Ctrl+Cmd+O
 ```
 
-插件会识别 `$t('key')`、`this.$t('key')`、`t('key')`、`i18n.t('key')`，并展示 key 对应的中文文案。
+插件会识别 `$t('key')`、`this.$t('key')`、`t('key')`、`i18n.t('key')`、`const { t: tt } = useI18n()` 后的 `tt('key')`，以及 `const i18n = useI18n()` 后的 `i18n.t('key')`，并展示 key 对应的中文文案。
+
+如果不想自动覆盖显示，可以关闭：
+
+```json
+{
+  "localeSail.inlineTranslationPreview": false
+}
+```
+
+如果项目封装了自己的局部翻译函数，例如：
+
+```js
+const tt = useScopedI18n('views.order.detail')
+tt('title')
+```
+
+可以配置：
+
+```json
+{
+  "localeSail.scopedTranslateFunctionNames": ["useLocale", "useScopedI18n"]
+}
+```
 
 ## 提取规则
 

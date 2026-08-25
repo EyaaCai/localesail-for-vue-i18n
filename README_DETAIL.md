@@ -48,6 +48,9 @@
 
 - 支持识别 **`$t('key')`**、**`this.$t('key')`**、**`t('key')`**、**`i18n.t('key')`**
 - 支持短 key 回查完整路径。例如代码中使用 **`t('6gt5yaxm60k0')`**，JSON 中实际保存为 **`views.account.print_page.print_invoice.index.6gt5yaxm60k0`** 时，也会展示对应翻译
+- 默认只检测当前打开文件，并自动覆盖展示 key 对应的翻译文案
+- 支持按 key 路径查找拆分后的 JS/TS 语言包，找不到时再回退到 locale JSON
+- 支持配置局部翻译函数工厂，例如 `useLocale`、`useScopedI18n` 等
 - 用新生成的唯一 key 或短 hash key 来标识，为了防止 json 中的 key 被使用多次
 - 编辑内容后会自动刷新提示结果，无需重复手动执行查看命令
 
@@ -90,25 +93,31 @@
 
   -**`Do Not Disturb`**,默认 false,若为 true 则会关闭任何命令提醒
 
-  -**`I18n Value Hover`**，默认 true,开启悬浮提示框功能
+  -**`i18nValueHover`**，默认 true,开启悬浮提示框功能
 
-  -**`Module Prefix Fo Update Json`**，默认空，生成 JSON key 时添加模块前缀
+  -**`inlineTranslationPreview`**，默认 true,开启当前文件 key 的自动覆盖翻译预览
 
-  -**`Not Use File Name As Key`**，默认 false，是否不使用当前文件名作为 key 层级
+  -**`previewLocale`**，默认空，指定自动覆盖预览使用的语言名；为空时根据 `langFile` 推导
 
-  -**`File Name Substitute`**，默认 `components`，当不使用文件名且没有其它前缀时的替代层级
+  -**`scopedTranslateFunctionNames`**，默认 `["useLocale"]`，配置可生成局部翻译函数的函数名
 
-  -**`Parent Dir Level`**，默认 1，生成 key 时读取上级目录的层级数
+  -**`modulePrefixForUpdateJson`**，默认空，生成 JSON key 时添加模块前缀
 
-  -**`Use Compact Path Mode`**，默认 false，开启后按相对路径生成更完整的 key 层级
+  -**`notUseFileNameAsKey`**，默认 false，是否不使用当前文件名作为 key 层级
 
-  -**`Use Compact Mode Base Path`**，默认 `src`，紧凑路径模式的基准路径
+  -**`fileNameSubstitute`**，默认 `components`，当不使用文件名且没有其它前缀时的替代层级
 
-  -**`Use Hash Key Only`**，默认 false，代码替换时只使用短 hash key，JSON 中仍保存完整路径
+  -**`parentDirLevel`**，默认 1，生成 key 时读取上级目录的层级数
 
-  -**`Generate I18n Files Output Dir`**，默认 `src/i18n/lang/zh-cn`，拆分 i18n 文件输出目录
+  -**`useCompactPathMode`**，默认 false，开启后按相对路径生成更完整的 key 层级
 
-  -**`Generate I18n Files Ext`**，默认 `auto`，拆分 i18n 文件后缀，可选 `auto`、`js`、`ts`
+  -**`useCompactModeBasePath`**，默认 `src`，紧凑路径模式的基准路径
+
+  -**`useHashKeyOnly`**，默认 false，代码替换时只使用短 hash key，JSON 中仍保存完整路径
+
+  -**`generateI18nFilesOutputDir`**，默认 `src/i18n/lang/zh-cn`，拆分 i18n 文件输出目录
+
+  -**`generateI18nFilesExt`**，默认 `auto`，拆分 i18n 文件后缀，可选 `auto`、`js`、`ts`
 
 ### 3. localesailrc.json
 

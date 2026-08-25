@@ -19,10 +19,22 @@ const jump = line => {
 	);
 };
 
+const selectText = (editor, index, length) => {
+	const start = editor.document.positionAt(index);
+	const end = editor.document.positionAt(index + length);
+	editor.selection = new Selection(start, end);
+	jump(start.line);
+};
+
 module.exports = (editor, i18nKeys) => {
 	const text = editor.document.getText();
 	if (!validator.isJSON(text)) {
-		msg.error(`'${editor.document.fileName}'  is not a right json !`);
+		const keyIndex = text.indexOf(i18nKeys);
+		if (keyIndex !== -1) {
+			selectText(editor, keyIndex, i18nKeys.length);
+			return;
+		}
+		msg.error(`Can not find '${i18nKeys}' in '${editor.document.fileName}'`);
 		return;
 	}
 

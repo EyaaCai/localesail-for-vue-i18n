@@ -20,12 +20,12 @@ const {
 } = require("../utils/vs");
 
 const tipBeforeWriteJson = (currentEditor, localesPath) => {
-	const { notAlertBeforeUpdateI18n, puidType, hashLength } = getCustomSetting(
+	const { notAlertBeforeUpdateI18n, hashLength } = getCustomSetting(
 		currentEditor.document.uri.fsPath,
-		["notAlertBeforeUpdateI18n", "puidType", "hashLength"]
+		["notAlertBeforeUpdateI18n", "hashLength"]
 	);
 	if (notAlertBeforeUpdateI18n) {
-		writeJson(currentEditor, localesPath, { puidType, hashLength });
+		writeJson(currentEditor, localesPath, { hashLength });
 	} else {
 		msg
 			.info(
@@ -43,7 +43,7 @@ const tipBeforeWriteJson = (currentEditor, localesPath) => {
 					});
 				}
 				if (result === "OK") {
-					writeJson(currentEditor, localesPath, { puidType, hashLength });
+					writeJson(currentEditor, localesPath, { hashLength });
 				}
 			});
 	}

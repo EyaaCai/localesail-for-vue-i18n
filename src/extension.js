@@ -9,6 +9,7 @@ const openI18nFile = require('./openI18nFile');
 const generateWorkspaceConfig = require('./generateWorkspaceConfig');
 const generateI18nFiles = require('./generateI18nFiles');
 const ignoreNextLine = require('./ignoreNextLine');
+const inlineTranslationPreview = require('./lib/inlineTranslationPreview');
 
 function activate(context) {
 	// register
@@ -30,6 +31,9 @@ function activate(context) {
 
 	// hover show i18n detail
 	hoverI18n(context);
+
+	// inline show i18n detail
+	inlineTranslationPreview(context);
 
 	// jump to i18n file
 	openI18nFile(context);

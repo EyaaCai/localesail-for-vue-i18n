@@ -107,17 +107,10 @@ const getlinesObj = (arr, puid, hashLength, existingKeys = []) => {
 //return linesObj
 module.exports = (currentEditor, options = {}) => {
   if (!currentEditor || !currentEditor.document) return {};
-  const config =
-    typeof options === 'string'
-      ? {
-          puidType: options,
-        }
-      : options || {};
   const {
-    puidType = 'short',
     hashLength = defaultHashLength,
     existingKeys = [],
-  } = config;
+  } = options || {};
   const { lineCount, languageId, lineAt } = currentEditor.document;
   const isJavascript =
     languageId === 'javascript' || languageId === 'javascriptreact';
@@ -227,7 +220,7 @@ module.exports = (currentEditor, options = {}) => {
       lines.push(...cnWordArr);
     }
   }
-  const puid = new Puid(puidType === 'short');
+  const puid = new Puid(true);
   const result = getlinesObj(
     Array.from(new Set(lines)),
     puid,

@@ -33,7 +33,7 @@
 }
 ```
 
-假如设置 **`modulePrefixFoUpdateJson`** 为 `test-module`， **`parentDirLevel`** 为 `3`，则对应的 json 外层如下：
+假如设置 **`modulePrefixForUpdateJson`** 为 `test-module`， **`parentDirLevel`** 为 `3`，则对应的 json 外层如下：
 
 ```json
 {

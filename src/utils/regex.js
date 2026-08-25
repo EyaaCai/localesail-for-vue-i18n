@@ -45,18 +45,36 @@ const angleBracketSpaceRegexp = new RegExp(
 const warnRegexp = /[{}<>]/g;
 const attributeQuotationRegexp = /["']/g;
 
-// 匹配 $t替换的字符串
-const dollarTRegexp =
-  /(?:(?:this\.)?\$t|i18n\.t|t)\(\s*(["'])([^"']+)\1/g;
+const defaultI18nCallers = ['this.$t', 'i18n.t', '$t', 't'];
 
-const getI18nKeyMatches = (text = '') => {
+const escapeRegExpSource = (value = '') =>
+  String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const getI18nCallRegexp = (extraCallers = []) => {
+  const callers = Array.from(
+    new Set([...defaultI18nCallers, ...extraCallers].filter((v) => !!v)),
+  )
+    .sort((a, b) => b.length - a.length)
+    .map(escapeRegExpSource)
+    .join('|');
+
+  return new RegExp(
+    `(^|[^\\w$.])(${callers})\\(\\s*(["'])([^"']+)\\3`,
+    'g',
+  );
+};
+
+const getI18nKeyMatches = (text = '', extraCallers = []) => {
   const matches = [];
   let match;
+  const dollarTRegexp = getI18nCallRegexp(extraCallers);
   dollarTRegexp.lastIndex = 0;
   while ((match = dollarTRegexp.exec(text))) {
-    const key = match[2];
+    const caller = match[2];
+    const key = match[4];
     const keyIndex = match.index + match[0].lastIndexOf(key);
     matches.push({
+      caller,
       key,
       index: keyIndex,
       length: key.length,
@@ -66,8 +84,8 @@ const getI18nKeyMatches = (text = '') => {
   return matches;
 };
 
-const getI18nKeyAtPosition = (text = '', character = 0) => {
-  const match = getI18nKeyMatches(text).find(
+const getI18nKeyAtPosition = (text = '', character = 0, extraCallers = []) => {
+  const match = getI18nKeyMatches(text, extraCallers).find(
     ({ index, length }) => character >= index && character <= index + length,
   );
   return match && match.key;
@@ -88,7 +106,8 @@ module.exports = {
   firstSpaceRegexp,
   commentRegexp,
   disableNextLineCommentRegexp,
-  dollarTRegexp,
+  defaultI18nCallers,
+  getI18nCallRegexp,
   getI18nKeyAtPosition,
   getI18nKeyMatches,
   scriptSetupRegexp,

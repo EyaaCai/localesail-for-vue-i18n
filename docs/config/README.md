@@ -6,17 +6,29 @@
 - 默认值：`src/locales`
 - 描述：指定 LocaleSail 提取文案和预览翻译值时使用的 locale JSON 目录。
 
-## doNotDisturb
-
-- 类型：`boolean`
-- 默认值：`false`
-- 描述：执行命令时候是否弹窗提醒。
-
 ## i18nValueHover
 
 - 类型：`boolean`
 - 默认值：`true`
 - 描述：是否开启悬浮展示 key/value 及跳转功能。
+
+## inlineTranslationPreview
+
+- 类型：`boolean`
+- 默认值：`true`
+- 描述：是否在当前打开文件中自动覆盖显示 i18n key 对应的翻译文案。
+
+## previewLocale
+
+- 类型：`string`
+- 默认值：`""`
+- 描述：自动覆盖预览使用的语言名，例如 `zh-cn`、`en-us`。为空时根据 `langFile` 推导，例如 `zh-cn.json` 会使用 `zh-cn`。悬浮提示仍会展示所有可发现语言。
+
+## scopedTranslateFunctionNames
+
+- 类型：`string[]`
+- 默认值：`["useLocale"]`
+- 描述：用于从 key 前缀创建局部翻译函数的函数名。例如 `const t = useLocale('views.home')` 后，`t('title')` 会按 `views.home.title` 查找。也支持 `const { t: tt } = useScopedI18n('views.home')` 和 `const scoped = useScopedI18n('views.home'); scoped.t('title')` 这类形式。若项目使用自定义封装，可在这里加入对应函数名。
 
 ## langFile
 
@@ -24,19 +36,13 @@
 - 默认值：`zh-cn.json`
 - 描述：指定国际化 JSON 文件名称。
 
-## puidType
-
-- 类型：`string`
-- 默认值：`short`
-- 描述：为国际化 JSON 的 value 生成唯一 key 的基础类型，默认为 short。通常保持默认即可。
-
 ## hashLength
 
 - 类型：`number`
 - 默认值：`8`
 - 描述：生成 Hash Key 的长度，支持 `6` 到 `24`。推荐默认 `8` 位，足够短且适合大多数项目；大型项目或非常保守的团队可设置为 `10` 或 `12`。
 
-## modulePrefixFoUpdateJson
+## modulePrefixForUpdateJson
 
 - 类型：`string`
 - 默认值：`""`

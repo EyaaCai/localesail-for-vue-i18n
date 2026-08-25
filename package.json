@@ -12,9 +12,9 @@
     "i18n",
     "developer-tool"
   ],
-  "version": "0.3.0",
+  "version": "0.4.0",
   "engines": {
-    "vscode": "^1.37.1"
+    "vscode": "^1.67.0"
   },
   "categories": [
     "Programming Languages",
@@ -75,79 +75,89 @@
         "localeSail.defaultLocalesPath": {
           "type": "string",
           "default": "src/locales",
-          "description": "Specify the 'locales' folder path for i18n files. / 指定 i18n 语言包文件夹路径 (默认 'src/locales')。"
-        },
-        "localeSail.doNotDisturb": {
-          "type": "boolean",
-          "default": false,
-          "description": "Whether to suppress alert tips when executing commands. / 执行时是否不再弹出提示窗口 (默认 false)。"
+          "description": "指定 i18n 语言包 JSON 文件所在目录，默认 `src/locales`。"
         },
         "localeSail.i18nValueHover": {
           "type": "boolean",
           "default": true,
-          "description": "Whether to show the translated text when hovering over an i18n key. / 鼠标悬停在 Key 上时是否显示对应的翻译详情 (默认 true)。"
+          "description": "鼠标悬停在 i18n key 上时，是否显示对应的翻译详情。"
+        },
+        "localeSail.inlineTranslationPreview": {
+          "type": "boolean",
+          "default": true,
+          "description": "是否在当前打开的编辑器中自动覆盖显示 i18n key 对应的翻译文案。"
+        },
+        "localeSail.previewLocale": {
+          "type": "string",
+          "default": "",
+          "description": "自动覆盖预览使用的语言名，例如 `zh-cn` 或 `en-us`；为空时根据 `langFile` 推导。"
+        },
+        "localeSail.scopedTranslateFunctionNames": {
+          "type": "array",
+          "default": [
+            "useLocale"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "description": "用于从 key 前缀创建局部翻译函数的函数名，例如 `const t = useLocale('views.home')`。"
         },
         "localeSail.langFile": {
           "type": "string",
           "default": "zh-cn.json",
-          "description": "File name for the locales JSON. / 语言包文件名 (默认 'zh-cn.json')。"
-        },
-        "localeSail.puidType": {
-          "type": "string",
-          "default": "short",
-          "description": "Generate 'long' (24-byte) or 'short' (12-byte) random IDs as keys. / 选择生成长（24位）或短（12位）随机 ID 作为 Key (默认 'short')。"
+          "description": "默认语言包 JSON 文件名，默认 `zh-cn.json`。"
         },
         "localeSail.hashLength": {
           "type": "number",
           "default": 8,
           "minimum": 6,
           "maximum": 24,
-          "description": "Length of generated hash keys. 8 is recommended for short readable keys; use 10-12 for larger projects. / 生成 Hash Key 的长度，推荐 8 位；大型项目可设置为 10-12 位。"
+          "description": "生成 hash key 的长度，支持 6 到 24；推荐默认 8 位，大型项目可设置为 10 到 12 位。"
         },
         "localeSail.fileNameSubstitute": {
           "type": "string",
           "default": "components",
-          "description": "Substitute folder/file name used when 'notUseFileNameAsKey' is active. / 当禁用文件名作 Key 时使用的占位符 (默认 'components')。"
+          "description": "当 `notUseFileNameAsKey` 开启且没有其它前缀时使用的替代层级，默认 `components`。"
         },
-        "localeSail.modulePrefixFoUpdateJson": {
+        "localeSail.modulePrefixForUpdateJson": {
           "type": "string",
           "default": "",
-          "description": "An optional global prefix added to generated JSON keys. / 自动提取时，为生成的 JSON 属性 Key 添加全局前缀 (默认为空)。"
+          "description": "自动提取文案时，为生成的 JSON key 添加全局模块前缀。"
         },
         "localeSail.notAlertBeforeUpdateI18n": {
           "type": "boolean",
           "default": false,
-          "description": "Whether to skip the confirmation alert before extracting i18n keys. / 提取汉字前是否不再弹出确认框 (默认 false)。"
+          "description": "提取文案前是否跳过确认弹窗。"
         },
         "localeSail.notUseFileNameAsKey": {
           "type": "boolean",
           "default": false,
-          "description": "Whether to exclude the file name from the generated JSON key hierarchy. / 是否在 JSON 层级结构中忽略文件名 (默认 false)。"
+          "description": "生成 JSON key 层级时，是否忽略当前文件名。"
         },
         "localeSail.parentDirLevel": {
           "type": "number",
           "default": 1,
-          "description": "The number of parent directory levels to prepend to the JSON key. / 向上提取并作为 JSON Key 前缀的父目录级数 (默认 1)。"
+          "description": "生成 JSON key 层级时，向上读取并作为前缀的父目录层级数。"
         },
         "localeSail.useCompactPathMode": {
           "type": "boolean",
           "default": false,
-          "description": "Whether to use compact path mode (merge relative path as the first level key). / 是否开启紧凑路径模式（将相对路径合并至第一层级 Key，适用于大型项目防止同名文件 Key 冲突)。"
+          "description": "是否开启紧凑路径模式；开启后会按相对路径生成更完整的 key 层级，减少同名文件冲突。"
         },
         "localeSail.useCompactModeBasePath": {
           "type": "string",
           "default": "src",
-          "description": "The base path used to calculate relative paths when 'useCompactPathMode' is enabled. (Only works when 'useCompactPathMode' is true) / 当开启紧凑模式时，计算相对路径的基准目录 (仅在开启 'useCompactPathMode' 时生效，默认 'src')。"
+          "description": "紧凑路径模式下用于计算相对路径的基准目录，仅在 `useCompactPathMode` 开启时生效。"
         },
         "localeSail.useHashKeyOnly": {
           "type": "boolean",
           "default": false,
-          "description": "Whether to use only the hash part as the i18n key during code replacement (ignoring full path). / 自动替换代码时，是否仅使用随机 Hash 值（忽略路径前缀，使代码保持精炼)。"
+          "description": "自动替换代码时是否只使用 hash key，忽略完整路径前缀。"
         },
         "localeSail.generateI18nFilesOutputDir": {
           "type": "string",
           "default": "src/i18n/lang/zh-cn",
-          "description": "Output directory for split i18n files. / 拆分出的免配置 i18n 文件的输出目录 (默认 'src/i18n/lang/zh-cn')。"
+          "description": "拆分 i18n 文件的输出目录，默认 `src/i18n/lang/zh-cn`。"
         },
         "localeSail.generateI18nFilesExt": {
           "type": "string",
@@ -157,7 +167,7 @@
             "ts"
           ],
           "default": "auto",
-          "description": "File extension for generated i18n files. / 生成的 i18n 文件扩展名 (默认 'auto')。"
+          "description": "生成拆分 i18n 文件时使用的文件后缀，默认 `auto`。"
         }
       }
     },
@@ -316,7 +326,7 @@
     "@types/glob": "^7.1.1",
     "@types/mocha": "^5.2.6",
     "@types/node": "^10.14.14",
-    "@types/vscode": "^1.37.0",
+    "@types/vscode": "^1.67.0",
     "eslint": "^5.13.0",
     "glob": "^7.1.4",
     "mocha": "^6.2.0",

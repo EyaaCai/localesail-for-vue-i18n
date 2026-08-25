@@ -1,55 +1,67 @@
 const fs = require("fs");
 const path = require("path");
-const flatten = require("flat");
 const { Hover, MarkdownString } = require("../utils/vs");
 const { operation } = require("../utils/constant");
-const { getLocales, getCustomSetting, getLocaleValueByKey } = require("../utils");
-const { getI18nKeyAtPosition } = require("../utils/regex");
+const { getCustomSetting } = require("../utils");
+const { getI18nKeyMatches } = require("../utils/regex");
+const {
+	getScopedTranslateScopes,
+	getUseI18nTranslateCallers,
+} = require("../utils/inlineTranslationResolver");
+const {
+	isDefaultLocalesPathFallback,
+	resolveLocaleValues
+} = require("./inlineTranslationPreview")._private;
+const missingTranslationText = "未翻译";
+const defaultLocalesPathFallbackBadge = "[D]";
 
-/* 获取悬浮内容 */
-const getHoverMsg = (localesPath, key) => {
-	let message, previous, current;
-	const localesFoldPath = path.dirname(localesPath);
-	const localesArr = fs.readdirSync(localesFoldPath);
-	let msgArr = [];
-	localesArr.forEach(item => {
-		if (/\.json$/g.test(item)) {
-			const itemPath = path.join(localesFoldPath, item);
-			const data = fs.readFileSync(itemPath);
-			const langName = path.basename(item, ".json");
-			const i18nObj = !!data.toString() ? JSON.parse(data.toString()) : {};
-			const localeObj = flatten(i18nObj);
-			const { exist, key: matchedKey, value } = getLocaleValueByKey(localeObj, key);
+const buildOpenLocaleCommandLink = ({ label, filePath, key }) =>
+	`[${label}](command:${
+		operation.openI18nFile.cmd
+	}?${encodeURIComponent(
+		JSON.stringify({
+			fPath: filePath,
+			key,
+		})
+	)} "Show In '${path.basename(filePath)}'")`;
 
-			//跳转命令传参
-			const name = `[\`${langName}\`](command:${
-				operation.openI18nFile.cmd
-			}?${encodeURIComponent(
-				JSON.stringify({
-					fPath: itemPath
-				})
-			)} "Open '${item}'")`;
+const isExistingFile = (filePath) => {
+	try {
+		return !!filePath && fs.existsSync(filePath) && fs.statSync(filePath).isFile();
+	} catch (e) {
+		return false;
+	}
+};
 
-			//详情跳转命令传参
-			const link = exist
-				? `[${value}](command:${
-						operation.openI18nFile.cmd
-				  }?${encodeURIComponent(
-						JSON.stringify({
-							fPath: itemPath,
-							key: matchedKey
-						})
-				  )} "Show In '${item}'")`
-				: "undefined";
+const getHoverMsg = (results) => {
+	const message = results
+		.map((result) => {
+			const canOpenFile = isExistingFile(result.filePath);
+			const localeLabel = canOpenFile
+				? buildOpenLocaleCommandLink({
+						label: `\`${result.localeName}\``,
+						filePath: result.filePath,
+						key: result.key,
+				  })
+				: `\`${result.localeName}\``;
+			const valueLabel = result.exist && canOpenFile
+				? buildOpenLocaleCommandLink({
+						label: String(result.value),
+						filePath: result.filePath,
+						key: result.key,
+				  })
+				: result.exist
+				? String(result.value)
+				: `**${missingTranslationText}**`;
+			const sourceLabel = isDefaultLocalesPathFallback(result)
+				? ` **${defaultLocalesPathFallbackBadge}**`
+				: "";
 
-			const current = `* _${name}_&nbsp;&nbsp;${link}\n`;
-			return msgArr.push(current);
-		}
-	});
-	message = msgArr.join("");
+			return `* _${localeLabel}_${sourceLabel}&nbsp;&nbsp;${valueLabel}`;
+		})
+		.join("\n");
 	const markdown = new MarkdownString(message);
 	markdown.isTrusted = true;
-
 	return markdown;
 };
 
@@ -67,21 +79,30 @@ const provideHover = (document, position, token) => {
 	const lineText = document.lineAt(lineNum).text;
 	const { fsPath } = document.uri;
 
-	const { defaultLocalesPath, i18nValueHover } = getCustomSetting(fsPath, [
-		"defaultLocalesPath",
+	const { i18nValueHover } = getCustomSetting(fsPath, [
 		"i18nValueHover"
 	]);
-	const { localesPath, exist } = getLocales({
-		fsPath: document.uri.fsPath,
-		defaultLocalesPath,
-		showInfo: false,
-		showError: false
-	});
-	if (!exist) return;
 	if (i18nValueHover) {
-		const i18nKey = getI18nKeyAtPosition(lineText, position.character);
-		if (i18nKey) {
-			const msg = getHoverMsg(localesPath, i18nKey);
+		const text = document.getText();
+		const { scopedTranslateFunctionNames } = getCustomSetting(fsPath, [
+			"scopedTranslateFunctionNames",
+		]);
+		const scopedTranslateScopes = getScopedTranslateScopes(
+			text,
+			scopedTranslateFunctionNames,
+		);
+		const extraCallers = [
+			...Object.keys(scopedTranslateScopes),
+			...getUseI18nTranslateCallers(text),
+		];
+		const match = getI18nKeyMatches(lineText, extraCallers).find(
+			({ index, length }) =>
+				position.character >= index && position.character <= index + length,
+		);
+		if (match) {
+			const msg = getHoverMsg(
+				resolveLocaleValues(document, match.key, match.caller),
+			);
 
 			return new Hover(msg);
 		}

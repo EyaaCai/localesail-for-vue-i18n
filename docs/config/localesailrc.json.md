@@ -11,18 +11,21 @@
 ```json
 {
   "defaultLocalesPath": "src/locales",
-  "doNotDisturb": false,
   "fileNameSubstitute": "components",
   "generateI18nFilesExt": "auto",
   "generateI18nFilesOutputDir": "src/i18n/lang/zh-cn",
   "hashLength": 8,
   "i18nValueHover": true,
+  "inlineTranslationPreview": true,
   "langFile": "zh-cn.json",
-  "modulePrefixFoUpdateJson": "",
+  "modulePrefixForUpdateJson": "",
   "notAlertBeforeUpdateI18n": false,
   "notUseFileNameAsKey": false,
   "parentDirLevel": 1,
-  "puidType": "short",
+  "previewLocale": "",
+  "scopedTranslateFunctionNames": [
+    "useLocale"
+  ],
   "useCompactModeBasePath": "src",
   "useCompactPathMode": false,
   "useHashKeyOnly": false

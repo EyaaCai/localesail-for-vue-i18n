@@ -145,7 +145,7 @@ const getPrefix = (currentEditor) => {
     useCompactPathMode = false,
     useCompactModeBasePath = 'src',
   } = getCustomSetting(fileFsPath, {
-    modulePrefix: 'modulePrefixFoUpdateJson',
+    modulePrefix: 'modulePrefixForUpdateJson',
     notUseFileNameAsKey: 'notUseFileNameAsKey',
     jsonNameLevel: 'parentDirLevel',
     useCompactPathMode: 'useCompactPathMode',
