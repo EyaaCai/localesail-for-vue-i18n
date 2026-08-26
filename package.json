@@ -12,7 +12,7 @@
     "i18n",
     "developer-tool"
   ],
-  "version": "0.4.0",
+  "version": "0.4.1",
   "engines": {
     "vscode": "^1.67.0"
   },
@@ -102,6 +102,24 @@
           },
           "description": "用于从 key 前缀创建局部翻译函数的函数名，例如 `const t = useLocale('views.home')`。"
         },
+        "localeSail.splitLocalePathAliases": {
+          "type": "object",
+          "default": {},
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
+          },
+          "description": "拆分语言文件路径别名，用于兼容历史 key 前缀和实际目录不一致的项目；支持 `order.components` 或 `order/components` 形式。"
+        },
         "localeSail.langFile": {
           "type": "string",
           "default": "zh-cn.json",
@@ -141,7 +159,7 @@
         },
         "localeSail.useCompactPathMode": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "是否开启紧凑路径模式；开启后会按相对路径生成更完整的 key 层级，减少同名文件冲突。"
         },
         "localeSail.useCompactModeBasePath": {

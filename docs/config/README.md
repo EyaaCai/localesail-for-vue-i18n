@@ -30,6 +30,12 @@
 - 默认值：`["useLocale"]`
 - 描述：用于从 key 前缀创建局部翻译函数的函数名。例如 `const t = useLocale('views.home')` 后，`t('title')` 会按 `views.home.title` 查找。也支持 `const { t: tt } = useScopedI18n('views.home')` 和 `const scoped = useScopedI18n('views.home'); scoped.t('title')` 这类形式。若项目使用自定义封装，可在这里加入对应函数名。
 
+## splitLocalePathAliases
+
+- 类型：`Record<string, string | string[]>`
+- 默认值：`{}`
+- 描述：拆分语言文件路径别名，用于兼容历史 key 前缀和实际目录不一致的项目。匹配时支持 `.`、`/`、`\` 分隔，并按最长前缀优先。例如 `{ "order/components": ["views/forwarder/order/components"] }` 会把 `order.components.List.index.xxx` 额外映射到 `views/forwarder/order/components/List/index.js` 或 `.ts`。
+
 ## langFile
 
 - 类型：`string`
@@ -86,7 +92,7 @@
 ## useCompactPathMode
 
 - 类型：`boolean`
-- 默认值：`false`
+- 默认值：`true`
 - 描述：是否开启**紧凑路径模式**。开启后，将根据相对路径自动生成多层级 Key，有效防止不同目录下同名文件的 Key 冲突。
 
 ## useCompactModeBasePath

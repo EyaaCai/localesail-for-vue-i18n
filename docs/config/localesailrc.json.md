@@ -26,8 +26,9 @@
   "scopedTranslateFunctionNames": [
     "useLocale"
   ],
+  "splitLocalePathAliases": {},
   "useCompactModeBasePath": "src",
-  "useCompactPathMode": false,
+  "useCompactPathMode": true,
   "useHashKeyOnly": false
 }
 ```

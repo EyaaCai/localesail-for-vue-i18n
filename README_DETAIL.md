@@ -50,6 +50,7 @@
 - 支持短 key 回查完整路径。例如代码中使用 **`t('6gt5yaxm60k0')`**，JSON 中实际保存为 **`views.account.print_page.print_invoice.index.6gt5yaxm60k0`** 时，也会展示对应翻译
 - 默认只检测当前打开文件，并自动覆盖展示 key 对应的翻译文案
 - 支持按 key 路径查找拆分后的 JS/TS 语言包，找不到时再回退到 locale JSON
+- 支持通过 `splitLocalePathAliases` 配置拆分语言包路径别名，兼容历史 key 前缀和实际目录不一致的项目；别名未命中时还会尝试当前源码相对路径
 - 支持配置局部翻译函数工厂，例如 `useLocale`、`useScopedI18n` 等
 - 用新生成的唯一 key 或短 hash key 来标识，为了防止 json 中的 key 被使用多次
 - 编辑内容后会自动刷新提示结果，无需重复手动执行查看命令
@@ -101,6 +102,8 @@
 
   -**`scopedTranslateFunctionNames`**，默认 `["useLocale"]`，配置可生成局部翻译函数的函数名
 
+  -**`splitLocalePathAliases`**，默认 `{}`，拆分语言文件路径别名，例如 `{ "order/components": ["views/forwarder/order/components"] }`
+
   -**`modulePrefixForUpdateJson`**，默认空，生成 JSON key 时添加模块前缀
 
   -**`notUseFileNameAsKey`**，默认 false，是否不使用当前文件名作为 key 层级
@@ -109,7 +112,7 @@
 
   -**`parentDirLevel`**，默认 1，生成 key 时读取上级目录的层级数
 
-  -**`useCompactPathMode`**，默认 false，开启后按相对路径生成更完整的 key 层级
+  -**`useCompactPathMode`**，默认 true，开启后按相对路径生成更完整的 key 层级
 
   -**`useCompactModeBasePath`**，默认 `src`，紧凑路径模式的基准路径
 

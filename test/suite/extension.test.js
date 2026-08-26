@@ -37,6 +37,7 @@ const { defaultConfig } = require('../../src/utils/constant');
 const {
 	extractExportDefaultObject,
 	getSplitFileCandidates,
+	normalizeSplitLocalePathAliases,
 	getScopedTranslateScopes,
 	getUseLocaleScopes,
 	getUseI18nTranslateCallers,
@@ -47,7 +48,9 @@ const {
 	clearLocaleFileCache,
 	formatPreviewText,
 	getAvailableLocales,
+	getCandidateKeys,
 	getPreviewLocaleName,
+	getSourcePathPrefix,
 	isDefaultLocalesPathFallback,
 	readCachedLocaleFile,
 	resolveLocaleValues
@@ -530,6 +533,139 @@ suite('Extension Test Suite', () => {
 		});
 	});
 
+	test('Inline translation preview builds aliased split locale candidates', () => {
+		const baseDir = path.join(os.tmpdir(), 'localesail-inline-alias');
+		const key =
+			'order.components.OrderList.components.BatchPackagingDialog.index.5y3e1zf8xo40';
+		const sourceBasePath = path.join(baseDir, 'src');
+		const sourceFilePath = path.join(
+			sourceBasePath,
+			'views',
+			'forwarder',
+			'order',
+			'components',
+			'OrderList',
+			'components',
+			'BatchPackagingDialog',
+			'index.vue'
+		);
+
+		assert.deepStrictEqual(
+			normalizeSplitLocalePathAliases({
+				order: ['views/forwarder/order'],
+				'order/components': ['views/forwarder/order/components'],
+			}).map(({ fromParts, targetPartsList }) => [
+				fromParts,
+				targetPartsList,
+			]),
+			[
+				[
+					['order', 'components'],
+					[['views', 'forwarder', 'order', 'components']],
+				],
+				[['order'], [['views', 'forwarder', 'order']]],
+			]
+		);
+		assert.deepStrictEqual(
+			getSplitFileCandidates(baseDir, key, {
+				pathAliases: {
+					order: ['views/forwarder/order'],
+					'order/components': ['views/forwarder/order/components'],
+				},
+				sourceBasePath,
+				sourceFilePath,
+			}),
+			[
+				path.join(
+					baseDir,
+					'order',
+					'components',
+					'OrderList',
+					'components',
+					'BatchPackagingDialog',
+					'index.js'
+				),
+				path.join(
+					baseDir,
+					'order',
+					'components',
+					'OrderList',
+					'components',
+					'BatchPackagingDialog',
+					'index.ts'
+				),
+				path.join(
+					baseDir,
+					'views',
+					'forwarder',
+					'order',
+					'components',
+					'OrderList',
+					'components',
+					'BatchPackagingDialog',
+					'index.js'
+				),
+				path.join(
+					baseDir,
+					'views',
+					'forwarder',
+					'order',
+					'components',
+					'OrderList',
+					'components',
+					'BatchPackagingDialog',
+					'index.ts'
+				),
+			]
+		);
+	});
+
+	test('Inline translation preview adds source path candidates for hash-only keys without compact mode', () => {
+		const rootDir = fs.mkdtempSync(
+			path.join(os.tmpdir(), 'localesail-hash-source-path-')
+		);
+		const sourceFile = path.join(
+			rootDir,
+			'src',
+			'views',
+			'forwarder',
+			'order',
+			'components',
+			'OrderList',
+			'components',
+			'BatchPackagingDialog',
+			'index.vue'
+		);
+		const document = {
+			uri: { fsPath: sourceFile },
+		};
+
+		fs.mkdirSync(path.dirname(sourceFile), { recursive: true });
+		fs.writeFileSync(path.join(rootDir, 'package.json'), '{}', 'utf8');
+		fs.writeFileSync(
+			path.join(rootDir, 'localesailrc.json'),
+			JSON.stringify({
+				useHashKeyOnly: true,
+				useCompactPathMode: false,
+				useCompactModeBasePath: 'src',
+			}),
+			'utf8'
+		);
+
+		assert.strictEqual(
+			getSourcePathPrefix(sourceFile),
+			'views.forwarder.order.components.OrderList.components.BatchPackagingDialog.index'
+		);
+		assert.deepStrictEqual(
+			getCandidateKeys(document, '5y3e1zf8xo40'),
+			[
+				'BatchPackagingDialog.index.5y3e1zf8xo40',
+				'views.forwarder.order.components.OrderList.components.BatchPackagingDialog.index.5y3e1zf8xo40',
+				'5y3e1zf8xo40',
+			]
+		);
+	});
+
 	test('Inline translation preview detects useLocale scoped short keys', () => {
 		const text =
 			"const t = useLocale('views.customer.home.home_index.index');\n" +
@@ -630,6 +766,82 @@ suite('Extension Test Suite', () => {
 			'[D] ユーザー'
 		);
 		assert.strictEqual(formatPreviewText(allResults[0]), 'Users');
+	});
+
+	test('Inline translation preview resolves split locale files by alias and source path fallback', () => {
+		const rootDir = fs.mkdtempSync(
+			path.join(os.tmpdir(), 'localesail-alias-locale-')
+		);
+		const sourceFile = path.join(
+			rootDir,
+			'src',
+			'views',
+			'forwarder',
+			'order',
+			'components',
+			'OrderList',
+			'components',
+			'BatchPackagingDialog',
+			'index.vue'
+		);
+		const splitDir = path.join(
+			rootDir,
+			'src',
+			'locale',
+			'lang',
+			'zh-cn',
+			'views',
+			'forwarder',
+			'order',
+			'components',
+			'OrderList',
+			'components',
+			'BatchPackagingDialog'
+		);
+		const splitFile = path.join(splitDir, 'index.js');
+		const aliasKey =
+			'order.components.OrderList.components.BatchPackagingDialog.index.5y3e1zf8xo40';
+		const legacyKey = 'legacy.random.place.index.7q1qzzzzzzzz';
+
+		fs.mkdirSync(path.dirname(sourceFile), { recursive: true });
+		fs.mkdirSync(splitDir, { recursive: true });
+		fs.writeFileSync(path.join(rootDir, 'package.json'), '{}', 'utf8');
+		fs.writeFileSync(
+			path.join(rootDir, 'localesailrc.json'),
+			JSON.stringify({
+				generateI18nFilesOutputDir: 'src/locale/lang/zh-cn',
+				langFile: 'zh-cn.json',
+				splitLocalePathAliases: {
+					'order/components': ['views/forwarder/order/components'],
+				}
+			}),
+			'utf8'
+		);
+		fs.writeFileSync(
+			splitFile,
+			[
+				'export default {',
+				`  '${aliasKey}': '其他费用',`,
+				`  '${legacyKey}': '兜底文案',`,
+				'};',
+			].join('\n'),
+			'utf8'
+		);
+
+		const document = {
+			uri: { fsPath: sourceFile },
+			getText: () =>
+				[
+					`this.$t('${aliasKey}')`,
+					`this.$t('${legacyKey}')`,
+				].join('\n')
+		};
+		const resolver = createLocaleResolver(document);
+
+		assert.strictEqual(resolver(aliasKey, 'this.$t').value, '其他费用');
+		assert.strictEqual(resolver(aliasKey, 'this.$t').filePath, splitFile);
+		assert.strictEqual(resolver(legacyKey, 'this.$t').value, '兜底文案');
+		assert.strictEqual(resolver(legacyKey, 'this.$t').filePath, splitFile);
 	});
 
 	test('Inline translation preview caches locale files until they change', () => {

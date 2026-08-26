@@ -1,5 +1,13 @@
 # Change Log
 
+## 0.4.1
+
+- **拆分语言包路径别名**：新增 `splitLocalePathAliases` 配置，支持将历史 key 前缀映射到实际拆分语言包目录，例如 `order/components` -> `views/forwarder/order/components`，并按最长前缀优先匹配。
+- **预览解析兼容增强**：inline preview 与 hover 在按 key 路径查找失败后，会继续尝试路径别名和当前源码相对路径，不做全量扫描。
+- **Hash Key 查找优化**：`useHashKeyOnly` 场景下会额外按当前源码路径生成候选 key，减少未开启紧凑路径模式的历史项目漏查。
+- **紧凑路径默认开启**：`useCompactPathMode` 默认值改为 `true`，让新项目默认按相对路径生成更完整、更稳定的 key 层级。
+- **文档完善**：补充 `splitLocalePathAliases` 配置说明，并同步紧凑路径模式默认值。
+
 ## 0.4.0
 
 - **自动覆盖预览**：新增当前打开文件的 i18n key 翻译覆盖显示，支持聚焦 key 时临时还原源码，左右分屏时非聚焦编辑器继续保留覆盖预览。

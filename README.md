@@ -157,6 +157,16 @@ t('用户名称')
 当光标或选区进入当前聚焦编辑器的某个 key 时，该 key 会临时还原为源码，方便直接编辑；非聚焦但仍可见的编辑器会继续保留覆盖预览。
 覆盖预览默认只显示一个语言；悬浮提示会展示所有可发现语言，并标出缺失翻译。
 
+如果历史项目里的 key 前缀和拆分语言包目录不完全一致，可以配置路径别名。别名支持 `.`、`/`、`\` 分隔，并按最长前缀优先：
+
+```json
+{
+  "localeSail.splitLocalePathAliases": {
+    "order/components": ["views/forwarder/order/components"]
+  }
+}
+```
+
 如果要指定覆盖预览语言，可以配置：
 
 ```json
@@ -292,7 +302,7 @@ localesailrc.json
   "langFile": "zh-cn.json",
   "hashLength": 8,
   "parentDirLevel": 1,
-  "useCompactPathMode": false,
+  "useCompactPathMode": true,
   "useHashKeyOnly": false
 }
 ```

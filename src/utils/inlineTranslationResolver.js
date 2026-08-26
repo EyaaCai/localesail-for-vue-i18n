@@ -35,13 +35,27 @@ const readSplitLocaleFile = (filePath) => {
   }
 };
 
-const getSplitFileCandidates = (baseDir, key) => {
-  if (!baseDir || !key || key.indexOf('.') === -1) return [];
+const splitPathPartRegexp = /[./\\]+/;
 
-  const parts = key.split('.');
-  parts.pop();
-  if (parts.length === 0) return [];
+const normalizeSplitPathParts = (value = '') =>
+  String(value)
+    .split(splitPathPartRegexp)
+    .map((part) => part.trim())
+    .filter((part) => !!part);
 
+const isSamePathParts = (left = [], right = []) =>
+  left.length === right.length &&
+  left.every((part, index) => part === right[index]);
+
+const hasPathPartPrefix = (parts = [], prefix = []) =>
+  prefix.length > 0 &&
+  parts.length >= prefix.length &&
+  prefix.every((part, index) => parts[index] === part);
+
+const toCandidateFiles = (baseDir, routeParts = []) => {
+  if (!baseDir || routeParts.length === 0) return [];
+
+  const parts = routeParts.slice();
   const fileName = parts.pop();
   const relativeDir = parts.join(path.sep);
   const targetDir = relativeDir ? path.join(baseDir, relativeDir) : baseDir;
@@ -50,6 +64,101 @@ const getSplitFileCandidates = (baseDir, key) => {
     path.join(targetDir, `${fileName}.js`),
     path.join(targetDir, `${fileName}.ts`),
   ];
+};
+
+const normalizeSplitLocalePathAliases = (pathAliases = {}) => {
+  if (!pathAliases || typeof pathAliases !== 'object') return [];
+
+  return Object.keys(pathAliases)
+    .map((from) => {
+      const targets = Array.isArray(pathAliases[from])
+        ? pathAliases[from]
+        : [pathAliases[from]];
+      return {
+        fromParts: normalizeSplitPathParts(from),
+        targetPartsList: targets
+          .map(normalizeSplitPathParts)
+          .filter((parts) => parts.length > 0),
+      };
+    })
+    .filter(
+      ({ fromParts, targetPartsList }) =>
+        fromParts.length > 0 && targetPartsList.length > 0,
+    )
+    .sort((a, b) => b.fromParts.length - a.fromParts.length);
+};
+
+const getAliasRouteCandidates = (routeParts = [], pathAliases = {}) => {
+  const aliases = normalizeSplitLocalePathAliases(pathAliases);
+  const candidates = [];
+
+  aliases.forEach(({ fromParts, targetPartsList }) => {
+    if (!hasPathPartPrefix(routeParts, fromParts)) return;
+
+    const restParts = routeParts.slice(fromParts.length);
+    targetPartsList.forEach((targetParts) => {
+      const nextParts = [...targetParts, ...restParts];
+      if (!isSamePathParts(nextParts, routeParts)) {
+        candidates.push(nextParts);
+      }
+    });
+  });
+
+  return candidates;
+};
+
+const getSourceRouteCandidate = (sourceFilePath, sourceBasePath) => {
+  if (!sourceFilePath || !sourceBasePath) return [];
+
+  const relativePath = path.relative(sourceBasePath, sourceFilePath);
+  if (
+    !relativePath ||
+    relativePath === '..' ||
+    relativePath.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relativePath)
+  ) {
+    return [];
+  }
+
+  const extName = path.extname(relativePath);
+  return normalizeSplitPathParts(
+    extName ? relativePath.slice(0, -extName.length) : relativePath,
+  );
+};
+
+const pushUniqueCandidates = (target, candidates) => {
+  candidates.forEach((filePath) => {
+    if (!target.includes(filePath)) {
+      target.push(filePath);
+    }
+  });
+};
+
+const getSplitFileCandidates = (baseDir, key, options = {}) => {
+  if (!baseDir || !key || key.indexOf('.') === -1) return [];
+
+  const routeParts = key.split('.');
+  routeParts.pop();
+  if (routeParts.length === 0) return [];
+
+  const candidates = [];
+  pushUniqueCandidates(candidates, toCandidateFiles(baseDir, routeParts));
+
+  getAliasRouteCandidates(routeParts, options.pathAliases).forEach(
+    (aliasRouteParts) => {
+      pushUniqueCandidates(candidates, toCandidateFiles(baseDir, aliasRouteParts));
+    },
+  );
+
+  const sourceRouteParts = getSourceRouteCandidate(
+    options.sourceFilePath,
+    options.sourceBasePath,
+  );
+  if (sourceRouteParts.length > 0) {
+    pushUniqueCandidates(candidates, toCandidateFiles(baseDir, sourceRouteParts));
+  }
+
+  return candidates;
 };
 
 const escapeRegExpSource = (value = '') =>
@@ -129,6 +238,7 @@ const getUseI18nTranslateCallers = (text = '') => {
 module.exports = {
   extractExportDefaultObject,
   getSplitFileCandidates,
+  normalizeSplitLocalePathAliases,
   getScopedTranslateScopes,
   getUseLocaleScopes,
   getUseI18nTranslateCallers,

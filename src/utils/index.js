@@ -142,7 +142,7 @@ const getPrefix = (currentEditor) => {
     notUseFileNameAsKey = false,
     fileNameSubstitute = 'components',
     jsonNameLevel = 0,
-    useCompactPathMode = false,
+    useCompactPathMode = true,
     useCompactModeBasePath = 'src',
   } = getCustomSetting(fileFsPath, {
     modulePrefix: 'modulePrefixForUpdateJson',

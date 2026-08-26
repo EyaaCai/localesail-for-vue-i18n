@@ -61,7 +61,7 @@ module.exports = ({ context, uri }) => {
   }
 
   const {
-    useCompactPathMode = false,
+    useCompactPathMode = true,
     useHashKeyOnly = false,
     generateI18nFilesOutputDir = 'src/i18n/lang/zh-cn',
     generateI18nFilesExt = 'auto',

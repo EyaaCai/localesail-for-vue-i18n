@@ -161,6 +161,48 @@ const getSplitLocaleBaseDirForLocale = (fsPath, localeName) => {
   return path.join(path.dirname(configuredBaseDir), localeName);
 };
 
+const getSourceBasePath = (fsPath) => {
+  const rootPath = getWorkspaceRoot(fsPath);
+  if (!rootPath) return null;
+  const { useCompactModeBasePath = 'src' } = getCustomSetting(fsPath, [
+    'useCompactModeBasePath',
+  ]);
+
+  return path.isAbsolute(useCompactModeBasePath)
+    ? useCompactModeBasePath
+    : path.join(rootPath, useCompactModeBasePath);
+};
+
+const getSourcePathPrefix = (fsPath) => {
+  const sourceBasePath = getSourceBasePath(fsPath);
+  if (!sourceBasePath) return '';
+
+  const relativePath = path.relative(sourceBasePath, fsPath);
+  if (
+    !relativePath ||
+    relativePath === '..' ||
+    relativePath.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relativePath)
+  ) {
+    return '';
+  }
+
+  const extName = path.extname(relativePath);
+  const prefixPath = extName
+    ? relativePath.slice(0, -extName.length)
+    : relativePath;
+  return prefixPath
+    .split(/[\\/]+/)
+    .filter((part) => !!part)
+    .join('.');
+};
+
+const pushUnique = (target, value) => {
+  if (value && !target.includes(value)) {
+    target.push(value);
+  }
+};
+
 const listJsonLocales = (fsPath) => {
   const localesFolderPath = getLocalesFolderPath(fsPath);
   if (!localesFolderPath || !fs.existsSync(localesFolderPath)) return [];
@@ -237,11 +279,22 @@ const getCandidateKeys = (document, key, caller, scopedTranslateScopes = {}) => 
   ]);
   if (!useHashKeyOnly || key.indexOf('.') !== -1) return [key];
 
-  const activeEditor = window.activeTextEditor;
-  if (!activeEditor || activeEditor.document !== document) return [key];
+  const candidateKeys = [];
+  try {
+    const prefix = getPrefix({ document });
+    pushUnique(candidateKeys, prefix ? `${prefix}.${key}` : '');
+  } catch (e) {
+    // Ignore prefix fallback errors and keep resolving with the raw hash key.
+  }
 
-  const prefix = getPrefix(activeEditor);
-  return prefix ? [`${prefix}.${key}`, key] : [key];
+  const sourcePathPrefix = getSourcePathPrefix(document.uri.fsPath);
+  pushUnique(
+    candidateKeys,
+    sourcePathPrefix ? `${sourcePathPrefix}.${key}` : '',
+  );
+  pushUnique(candidateKeys, key);
+
+  return candidateKeys;
 };
 
 const getTranslateContext = (fsPath, text) => {
@@ -273,11 +326,19 @@ const createLocaleResolver = (document, options = {}) => {
   const localesPath = getJsonLocalePath(fsPath, localeName);
   const jsonLocaleObj = readJsonLocale(localesPath);
   const splitLocaleBaseDir = getSplitLocaleBaseDirForLocale(fsPath, localeName);
+  const {
+    splitLocalePathAliases = {},
+  } = getCustomSetting(fsPath, ['splitLocalePathAliases']);
+  const sourceBasePath = getSourceBasePath(fsPath);
   const { scopedTranslateScopes, translateCallers } =
     options.translateContext || getTranslateContext(fsPath, text);
 
   const readSplitValue = (candidateKey, originalKey) => {
-    const candidates = getSplitFileCandidates(splitLocaleBaseDir, candidateKey);
+    const candidates = getSplitFileCandidates(splitLocaleBaseDir, candidateKey, {
+      pathAliases: splitLocalePathAliases,
+      sourceBasePath,
+      sourceFilePath: fsPath,
+    });
     for (const filePath of candidates) {
       const splitLocaleObj = readSplitLocaleFileCached(filePath);
       let result = getLocaleValueByKey(splitLocaleObj, candidateKey);
@@ -644,6 +705,8 @@ const registerInlineTranslationPreview = (context) => {
         event.affectsConfiguration('localeSail.defaultLocalesPath') ||
         event.affectsConfiguration('localeSail.langFile') ||
         event.affectsConfiguration('localeSail.generateI18nFilesOutputDir') ||
+        event.affectsConfiguration('localeSail.splitLocalePathAliases') ||
+        event.affectsConfiguration('localeSail.useCompactModeBasePath') ||
         event.affectsConfiguration('localeSail.useHashKeyOnly') ||
         event.affectsConfiguration('localeSail.scopedTranslateFunctionNames')
       ) {
@@ -669,6 +732,7 @@ module.exports._private = {
   getCandidateKeys,
   getFocusedKeySignature,
   getPreviewLocaleName,
+  getSourcePathPrefix,
   isDefaultLocalesPathFallback,
   isFocusedRange,
   formatPreviewText,
