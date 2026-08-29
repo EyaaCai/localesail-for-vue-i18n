@@ -31,6 +31,8 @@ const {
 	getExistingTranslateFunc,
 	getTranslateFunc,
 } = require('../../src/lib/replaceWithI18nKeys')._private;
+const { formatLocaleModuleEntry, toJsSingleQuotedString } =
+	require('../../src/lib/generateI18nFilesLogic')._private;
 const { isMixinFile } = require('../../src/utils');
 const { getLocaleValueByKey } = require('../../src/utils');
 const { defaultConfig } = require('../../src/utils/constant');
@@ -489,6 +491,27 @@ suite('Extension Test Suite', () => {
 				key: 'views.account.print_page.print_invoice.index.6gt5yaxm60k0',
 				value: '1.本次共打印${0}个订单，请确认是否已全部打印'
 			}
+		);
+	});
+
+	test('Split locale module entries escape newline-sensitive string content', () => {
+		const key = 'views.user.list.6ha2uoilwh01';
+		const value =
+			'1、等待物流扫描上网的订单...\n' +
+			'2、目前只统计... <br/>\n' +
+			'`模板字符串中提取的真实换行`\n' +
+			"包含单引号'和反斜杠\\";
+		const entry = formatLocaleModuleEntry(key, value);
+
+		assert.strictEqual(entry.includes('\n'), false);
+		assert.strictEqual(entry.includes('\\n'), true);
+		assert.strictEqual(
+			toJsSingleQuotedString("包含单引号'和反斜杠\\"),
+			"'包含单引号\\'和反斜杠\\\\'"
+		);
+		assert.deepStrictEqual(
+			Function(`return ({\n${entry}\n});`)(),
+			{ [key]: value }
 		);
 	});
 

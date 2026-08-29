@@ -7,16 +7,46 @@ const safeEval = require('safe-eval');
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const toJsSingleQuotedString = (value = '') =>
+  `'${String(value)
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/\r/g, '\\r')
+    .replace(/\n/g, '\\n')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029')}'`;
+
+const formatLocaleModuleEntry = (key, value) =>
+  `  ${toJsSingleQuotedString(key)}: ${toJsSingleQuotedString(value)},`;
+
+const getFormatOptions = (uri) => {
+  const editorConfig = workspace.getConfiguration('editor', uri);
+  const tabSize = editorConfig.get('tabSize', 2);
+
+  return {
+    tabSize: typeof tabSize === 'number' ? tabSize : 2,
+    insertSpaces: editorConfig.get('insertSpaces', true) !== false,
+  };
+};
+
 const getFormatEdits = async (uri) => {
   await workspace.openTextDocument(uri);
   try {
-    return await executeCommand('vscode.executeFormatDocumentProvider', uri);
+    return await executeCommand(
+      'vscode.executeFormatDocumentProvider',
+      uri,
+      getFormatOptions(uri),
+    );
   } catch (e) {
     // Newly-created files can be visible on disk before VS Code has a text model
     // or formatter ready for them. A short retry keeps first-run generation stable.
     await delay(100);
     await workspace.openTextDocument(uri);
-    return executeCommand('vscode.executeFormatDocumentProvider', uri);
+    return executeCommand(
+      'vscode.executeFormatDocumentProvider',
+      uri,
+      getFormatOptions(uri),
+    );
   }
 };
 
@@ -125,10 +155,8 @@ module.exports = ({ context, uri }) => {
 
       const obj = _data[key];
       const items = Object.keys(obj).map(k => {
-        let val = obj[k] || '';
-        val = val.replace(/'/g, "\\'");
         const finalKey = useHashKeyOnly ? k : `${key}.${k}`;
-        return `  '${finalKey}': '${val}',`;
+        return formatLocaleModuleEntry(finalKey, obj[k] || '');
       });
       if (items.length === 0) return;
 
@@ -191,8 +219,7 @@ module.exports = ({ context, uri }) => {
 
         if (hasChange && exportDefaultEndIndex !== -1 && braceIndex !== -1) {
           const mergedItems = Object.keys(mergedObj).map(fk => {
-            let val = String(mergedObj[fk]).replace(/'/g, "\\'");
-            return `  '${fk}': '${val}',`;
+            return formatLocaleModuleEntry(fk, mergedObj[fk]);
           });
 
           // 重新构造 export default 块的内容，保留括号前后的原始代码（如 import 等）
@@ -209,10 +236,8 @@ module.exports = ({ context, uri }) => {
         }
       } else {
         const itemsToInsert = Object.keys(_data[key]).map(k => {
-          let val = _data[key][k] || '';
-          val = String(val).replace(/'/g, "\\'");
           const finalKey = useHashKeyOnly ? k : `${key}.${k}`;
-          return `  '${finalKey}': '${val}',`;
+          return formatLocaleModuleEntry(finalKey, _data[key][k] || '');
         });
         if (itemsToInsert.length === 0) return;
         mkdirp.sync(targetDir);
@@ -254,4 +279,10 @@ module.exports = ({ context, uri }) => {
       needOpen: false
     });
   });
+};
+
+module.exports._private = {
+  formatLocaleModuleEntry,
+  getFormatOptions,
+  toJsSingleQuotedString,
 };

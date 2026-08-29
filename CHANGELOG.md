@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.4.2
+
+- **拆分语言包字符串转义修复**：`Build Split Locale Modules` 生成 JS/TS 语言模块时，会正确保留 `\n`、`\r`、单引号、反斜杠和 JS 行分隔字符的转义，避免多行文案破坏字符串语法。
+- **生成后格式化增强**：生成拆分语言包后调用宿主项目的 VS Code formatter，并传入目标文件解析出的 `editor.tabSize` / `editor.insertSpaces`，让输出更贴近宿主项目格式规则。
+- **自动覆盖预览刷新调整**：inline preview 编辑过程中不再随每次文本变化实时刷新，改为保存文件后刷新，并保留切换编辑器、选区变化和配置变化触发，减少输入时的重复刷新和焦点范围干扰。
+
 ## 0.4.1
 
 - **拆分语言包路径别名**：新增 `splitLocalePathAliases` 配置，支持将历史 key 前缀映射到实际拆分语言包目录，例如 `order/components` -> `views/forwarder/order/components`，并按最长前缀优先匹配。

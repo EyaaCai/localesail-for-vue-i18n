@@ -503,20 +503,6 @@ const refreshVisibleDecorations = (options = {}) => {
   return count;
 };
 
-const refreshDocumentDecorations = (document, options = {}) => {
-  disposeInvisibleEditorDecorations();
-  let count = 0;
-  getVisibleEditors()
-    .filter((editor) => editor.document === document)
-    .forEach((editor) => {
-      count += updateDecorations(editor, {
-        ...options,
-        restoreFocusedRange: isActiveEditor(editor),
-      }) || 0;
-    });
-  return count;
-};
-
 const clearPreviewDecorationsWhenDisabled = () => {
   getVisibleEditors().forEach((editor) => {
     if (!isPreviewEditor(editor)) {
@@ -688,15 +674,6 @@ const registerInlineTranslationPreview = (context) => {
         setStoredFocusedKeySignature(activeEditor, nextFocusedKeysSignature);
         updateDecorations(activeEditor, { restoreFocusedRange: true });
       }
-    }),
-    workspace.onDidChangeTextDocument((event) => {
-      if (refreshTimer) {
-        clearTimeout(refreshTimer);
-      }
-      refreshTimer = setTimeout(
-        () => refreshDocumentDecorations(event.document),
-        100,
-      );
     }),
     workspace.onDidChangeConfiguration((event) => {
       if (
