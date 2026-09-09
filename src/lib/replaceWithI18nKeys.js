@@ -7,8 +7,11 @@ const {
   changeObjeValueKey,
   getCustomSetting,
   getValueFromDotString,
+  getVueScriptRangeAtLine,
   showMessage,
+  isLineInRange,
   isMixinFile,
+  isVueSetupLine,
 } = require('../utils');
 const {
   scriptRegexp,
@@ -59,8 +62,18 @@ const getTranslateFunc = ({
   isMixinFile,
   existingTranslateFunc,
 }) => {
+  if (isSetup) {
+    if (
+      existingTranslateFunc &&
+      existingTranslateFunc !== '$t' &&
+      existingTranslateFunc !== 'this.$t'
+    ) {
+      return existingTranslateFunc;
+    }
+    return 't';
+  }
   if (existingTranslateFunc) return existingTranslateFunc;
-  if (isTS || isSetup) return 't';
+  if (isTS) return 't';
   if (isScript && isMixinFile) return 'this.$t';
   return '$t';
 };
@@ -178,6 +191,7 @@ const replaceWithI18nKeys = ({ editor, context }) => {
   if (!currentEditor) return;
 
   const { languageId } = currentEditor.document;
+  const isVue = languageId === 'vue';
   const isTS = languageId === 'typescript' || languageId === 'typescriptreact';
   const lineCount = currentEditor.document.lineCount;
   const defaultLocalesPath = getCustomSetting(
@@ -223,34 +237,32 @@ const replaceWithI18nKeys = ({ editor, context }) => {
       let inVueTemplateInterpolation = false;
       let vueTemplateDynamicAttributeQuote = null;
       let skipNextLine = false;
+      const hasTemplateBegin = typeof range.template.begin === 'number';
+      const hasTemplateEnd = typeof range.template.end === 'number';
+      const hasIncompleteTemplate = hasTemplateBegin !== hasTemplateEnd;
+      const hasIncompleteScript = (range.scripts || []).some(
+        (scriptRange) =>
+          typeof scriptRange.begin === 'number' &&
+          typeof scriptRange.end !== 'number',
+      );
+      if (hasIncompleteTemplate) {
+        msg.error('当前vue文件template标签不完整');
+        return;
+      }
+      if (hasIncompleteScript) {
+        msg.error('当前vue文件script标签不完整');
+        return;
+      }
       for (let i = 0; i < lineCount; i++) {
         //使用text替换,getWordRangeAtPosition无法替换全部
         const line = currentEditor.document.lineAt(i);
         let lineData = {
           lineText: line.text || '',
         };
-        const isTemplate = range.template.end && i < range.template.end;
-        const isScript = !range.template.end || i > range.template.end;
-        if (
-          (!range.template.begin &&
-            range.template.begin !== 0 &&
-            range.template.end) ||
-          (range.template.begin &&
-            !range.template.end &&
-            range.template.end !== 0)
-        ) {
-          msg.error('当前vue文件template标签不完整');
-          return;
-        }
-        if (
-          (!range.script.begin &&
-            range.script.begin !== 0 &&
-            range.script.end) ||
-          (range.script.begin && !range.script.end && range.script.end !== 0)
-        ) {
-          msg.error('当前vue文件script标签不完整');
-          return;
-        }
+        const vueScriptRange = getVueScriptRangeAtLine(range, i);
+        const isTemplate = isVue && isLineInRange(i, range.template);
+        const isScript = isVue ? !!vueScriptRange : true;
+        const isSetup = isVue ? isVueSetupLine(range, i) : false;
 
         if (skipNextLine) {
           skipNextLine = false;
@@ -298,7 +310,7 @@ const replaceWithI18nKeys = ({ editor, context }) => {
               localeObj,
               isScript,
               isTemplate,
-              isSetup: range.isSetup,
+              isSetup,
               isTS,
               isMixinFile: isMixinFileContext,
               existingTranslateFunc,
@@ -315,7 +327,7 @@ const replaceWithI18nKeys = ({ editor, context }) => {
               localeObj,
               isScript,
               isTemplate,
-              isSetup: range.isSetup,
+              isSetup,
               isTS,
               isMixinFile: isMixinFileContext,
               existingTranslateFunc,
@@ -332,7 +344,7 @@ const replaceWithI18nKeys = ({ editor, context }) => {
               localeObj,
               isScript,
               isTemplate,
-              isSetup: range.isSetup,
+              isSetup,
               isTS,
               isMixinFile: isMixinFileContext,
               existingTranslateFunc,

@@ -211,15 +211,73 @@ const getCellRange = ({ editor, regex, line }) =>
   //zero base charactor is 0
   editor.document.getWordRangeAtPosition(new Position(line, 0), regex);
 
+const setupFunctionRegexp =
+  /\b(?:async\s+)?setup\s*\([^)]*\)\s*\{|\bsetup\s*:\s*(?:async\s*)?(?:function\s*)?\([^)]*\)\s*\{|\bsetup\s*:\s*(?:async\s*)?\([^)]*\)\s*=>\s*\{/;
+
+const isNumber = (value) => typeof value === 'number';
+
+const isLineInRange = (line, range = {}) =>
+  isNumber(range.begin) &&
+  isNumber(range.end) &&
+  line >= range.begin &&
+  line <= range.end;
+
+const getLineRange = (ranges = [], line) =>
+  ranges.find((range) => isLineInRange(line, range));
+
+const getVueScriptRangeAtLine = (range = {}, line) =>
+  getLineRange(range.scripts || [], line) ||
+  (isLineInRange(line, range.script) ? range.script : null);
+
+const isVueSetupLine = (range = {}, line) => {
+  const scriptRange = getVueScriptRangeAtLine(range, line);
+  if (!scriptRange) return false;
+  return (
+    !!scriptRange.isSetup ||
+    !!getLineRange(scriptRange.setupRanges || [], line)
+  );
+};
+
+const countCodeBraces = (text = '') => {
+  let count = 0;
+  let quote = null;
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const nextChar = text[i + 1];
+    if (quote) {
+      if (char === '\\') {
+        i += 1;
+      } else if (char === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (char === '/' && nextChar === '/') break;
+    if (char === '"' || char === "'" || char === '`') {
+      quote = char;
+    } else if (char === '{') {
+      count += 1;
+    } else if (char === '}') {
+      count -= 1;
+    }
+  }
+  return count;
+};
+
 const getRange = (editor) => {
   const range = {
     template: {},
     script: {},
+    scripts: [],
     isSetup: false,
   };
   const lineCount = editor.document.lineCount;
+  let currentScript = null;
+  let activeSetupRange = null;
+  let setupBraceDepth = 0;
   for (let i = 0; i < lineCount; i++) {
     const line = editor.document.lineAt(i);
+    const lineText = line.text || '';
     const tBegin = getCellRange({
       editor,
       regex: templateBeginRegexp,
@@ -250,14 +308,64 @@ const getRange = (editor) => {
     } else if (tEnd) {
       range.template.end = tEnd.start.line;
     }
-    if (sSetup) {
-      range.script.begin = sSetup.start.line;
-      range.isSetup = true;
-    } else if (sBegin) {
-      range.script.begin = sBegin.start.line;
-    } else if (sEnd) {
-      range.script.end = sEnd.start.line;
+
+    if (sBegin) {
+      currentScript = {
+        begin: sBegin.start.line,
+        end: undefined,
+        isSetup: !!sSetup,
+        setupRanges: [],
+      };
+      range.scripts.push(currentScript);
     }
+
+    if (currentScript && currentScript.isSetup) {
+      range.isSetup = true;
+    } else if (currentScript) {
+      if (activeSetupRange) {
+        setupBraceDepth += countCodeBraces(lineText);
+        activeSetupRange.end = i;
+        if (setupBraceDepth <= 0) {
+          activeSetupRange = null;
+          setupBraceDepth = 0;
+        }
+      } else {
+        const setupMatch = lineText.match(setupFunctionRegexp);
+        if (setupMatch) {
+          activeSetupRange = { begin: i, end: i };
+          currentScript.setupRanges.push(activeSetupRange);
+          range.isSetup = true;
+          setupBraceDepth = countCodeBraces(
+            lineText.slice(setupMatch.index || 0),
+          );
+          if (setupBraceDepth <= 0) {
+            activeSetupRange = null;
+            setupBraceDepth = 0;
+          }
+        }
+      }
+    }
+
+    if (sEnd && currentScript) {
+      currentScript.end = sEnd.start.line;
+      if (activeSetupRange && !isNumber(activeSetupRange.end)) {
+        activeSetupRange.end = sEnd.start.line;
+      }
+      currentScript = null;
+      activeSetupRange = null;
+      setupBraceDepth = 0;
+    }
+  }
+  if (range.scripts.length > 0) {
+    range.script = {
+      begin: range.scripts[0].begin,
+      end: range.scripts[range.scripts.length - 1].end,
+      isSetup: range.scripts.some((scriptRange) => scriptRange.isSetup),
+      setupRanges: range.scripts.reduce(
+        (result, scriptRange) => result.concat(scriptRange.setupRanges || []),
+        [],
+      ),
+    };
   }
   return range;
 };
@@ -393,6 +501,9 @@ module.exports = {
   openFileByPath,
   getCellRange,
   getRange,
+  getVueScriptRangeAtLine,
+  isLineInRange,
+  isVueSetupLine,
   getLocales,
   changeObjeValueKey,
   getEditor,

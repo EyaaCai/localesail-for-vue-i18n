@@ -16,3 +16,4 @@ package-lock.json
 dist/
 .history
 release/
+.vscode-test/

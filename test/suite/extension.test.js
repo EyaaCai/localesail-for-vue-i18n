@@ -31,10 +31,20 @@ const {
 	getExistingTranslateFunc,
 	getTranslateFunc,
 } = require('../../src/lib/replaceWithI18nKeys')._private;
-const { formatLocaleModuleEntry, toJsSingleQuotedString } =
+const {
+	formatLocaleModuleEntry,
+	isJsIdentifier,
+	insertLocaleModuleEntries,
+	toJsObjectKey,
+	toJsSingleQuotedString
+} =
 	require('../../src/lib/generateI18nFilesLogic')._private;
 const { isMixinFile } = require('../../src/utils');
-const { getLocaleValueByKey } = require('../../src/utils');
+const {
+	getLocaleValueByKey,
+	getRange,
+	isVueSetupLine
+} = require('../../src/utils');
 const { defaultConfig } = require('../../src/utils/constant');
 const {
 	extractExportDefaultObject,
@@ -52,11 +62,20 @@ const {
 	getAvailableLocales,
 	getCandidateKeys,
 	getPreviewLocaleName,
+	getPreviewKeysSignature,
 	getSourcePathPrefix,
 	isDefaultLocalesPathFallback,
 	readCachedLocaleFile,
-	resolveLocaleValues
+	resolveLocaleValues,
+	updateDecorations
 } = require('../../src/lib/inlineTranslationPreview')._private;
+const {
+	getJsonKeyLocation,
+	getLocaleKeyLocation,
+	findJavaScriptKeyLocation
+} = require('../../src/lib/localeKeyLocation');
+const { provideDefinition } =
+	require('../../src/lib/provideDefinition');
 const packageJson = require('../../package.json');
 // const myExtension = require('../extension');
 const createEditor = (text, languageId) => {
@@ -444,7 +463,7 @@ suite('Extension Test Suite', () => {
 				isMixinFile: false,
 				existingTranslateFunc: '$t',
 			}),
-			'$t'
+			't'
 		);
 		assert.strictEqual(
 			getTranslateFunc({
@@ -456,6 +475,76 @@ suite('Extension Test Suite', () => {
 			}),
 			't'
 		);
+	});
+
+	test('Vue Options API setup function is treated as setup context', () => {
+		const editor = createEditor(
+			[
+				'<script>',
+				'export default {',
+				'  setup() {',
+				"    const title = '\u7ec4\u5408\u5f0f\u6807\u9898';",
+				'    return { title };',
+				'  },',
+				'  methods: {',
+				"    open() { return '\u9009\u9879\u5f0f\u6807\u9898'; }",
+				'  }',
+				'};',
+				'</script>',
+			].join('\n'),
+			'vue'
+		);
+		const range = getRange(editor);
+
+		assert.strictEqual(isVueSetupLine(range, 3), true);
+		assert.strictEqual(isVueSetupLine(range, 7), false);
+		assert.strictEqual(
+			getTranslateFunc({
+				isSetup: isVueSetupLine(range, 3),
+				isTS: false,
+				isScript: true,
+				isMixinFile: true,
+				existingTranslateFunc: '$t',
+			}),
+			't'
+		);
+		assert.strictEqual(
+			getTranslateFunc({
+				isSetup: isVueSetupLine(range, 7),
+				isTS: false,
+				isScript: true,
+				isMixinFile: true,
+				existingTranslateFunc: null,
+			}),
+			'this.$t'
+		);
+	});
+
+	test('Vue extraction reads script setup and classic script blocks together', () => {
+		const editor = createEditor(
+			[
+				'<template>',
+				'  <div>\u6a21\u677f\u6587\u6848</div>',
+				'</template>',
+				'<script setup>',
+				"const setupTitle = '\u7ec4\u5408\u5f0f\u6587\u6848';",
+				'</script>',
+				'<script>',
+				'export default {',
+				'  data() {',
+				"    return { classicTitle: '\u4f20\u7edf\u6587\u6848' };",
+				'  }',
+				'};',
+				'</script>',
+			].join('\n'),
+			'vue'
+		);
+
+		assert.deepStrictEqual(Object.values(retrieveCN(editor)).sort(), [
+			'\u4f20\u7edf\u6587\u6848',
+			'\u6a21\u677f\u6587\u6848',
+			'\u7ec4\u5408\u5f0f\u6587\u6848',
+		].sort());
 	});
 
 	test('I18n detail lookup supports generated translate calls', () => {
@@ -513,6 +602,53 @@ suite('Extension Test Suite', () => {
 			Function(`return ({\n${entry}\n});`)(),
 			{ [key]: value }
 		);
+	});
+
+	test('Split locale module entries use host-compatible property key syntax', () => {
+		assert.strictEqual(isJsIdentifier('wyxh4b40'), true);
+		assert.strictEqual(isJsIdentifier('constant.warehouse.wyxh4b40'), false);
+		assert.strictEqual(toJsObjectKey('wyxh4b40'), 'wyxh4b40');
+		assert.strictEqual(
+			toJsObjectKey('constant.warehouse.wyxh4b40'),
+			"'constant.warehouse.wyxh4b40'",
+		);
+		assert.strictEqual(
+			formatLocaleModuleEntry('wyxh4b40', '\u4f60\u597d'),
+			"  wyxh4b40: '\u4f60\u597d',",
+		);
+		assert.strictEqual(
+			formatLocaleModuleEntry('constant.warehouse.wyxh4b40', '\u4f60\u597d'),
+			"  'constant.warehouse.wyxh4b40': '\u4f60\u597d',",
+		);
+	});
+
+	test('Adding split locale entries preserves existing multiline template literals', () => {
+		const oldContent = [
+			'export default {',
+			"  '5unx1gvh4a10': `1、仓位所有商品的库存数量都为0时，仓位状态从“已占用”变更成“可回收”</br>",
+			'  2、回收后，仓位状态将变成“空闲”`,',
+			'};',
+		].join('\n');
+		const braceIndex = oldContent.indexOf('{');
+		const exportDefaultEndIndex = oldContent.lastIndexOf('}');
+		const content = insertLocaleModuleEntries(
+			oldContent,
+			braceIndex,
+			exportDefaultEndIndex,
+			["  'new.key': '新增文案',"],
+		);
+
+		assert.strictEqual(
+			content,
+			[
+				'export default {',
+				"  '5unx1gvh4a10': `1、仓位所有商品的库存数量都为0时，仓位状态从“已占用”变更成“可回收”</br>",
+				'  2、回收后，仓位状态将变成“空闲”`,',
+				"  'new.key': '新增文案',",
+				'};',
+			].join('\n'),
+		);
+		assert.strictEqual(content.includes('\\</br>'), false);
 	});
 
 	test('Inline translation preview resolves split locale files by key path', () => {
@@ -867,6 +1003,104 @@ suite('Extension Test Suite', () => {
 		assert.strictEqual(resolver(legacyKey, 'this.$t').filePath, splitFile);
 	});
 
+	test('Definition provider jumps to the resolved split locale key', () => {
+		const rootDir = fs.mkdtempSync(
+			path.join(os.tmpdir(), 'localesail-definition-')
+		);
+		const sourceFile = path.join(rootDir, 'src', 'views', 'home.vue');
+		const splitFile = path.join(
+			rootDir,
+			'src',
+			'i18n',
+			'lang',
+			'zh-cn',
+			'views',
+			'home.js'
+		);
+		const sourceText = "this.$t('views.home.title')";
+
+		fs.mkdirSync(path.dirname(sourceFile), { recursive: true });
+		fs.mkdirSync(path.dirname(splitFile), { recursive: true });
+		fs.writeFileSync(path.join(rootDir, 'package.json'), '{}', 'utf8');
+		fs.writeFileSync(
+			path.join(rootDir, 'localesailrc.json'),
+			JSON.stringify({
+				generateI18nFilesOutputDir: 'src/i18n/lang/zh-cn',
+				langFile: 'zh-cn.json'
+			}),
+			'utf8'
+		);
+		fs.writeFileSync(
+			splitFile,
+			[
+				'export default {',
+				"  'views.home.title': '首页',",
+				'};'
+			].join('\n'),
+			'utf8'
+		);
+
+		const document = {
+			uri: vscode.Uri.file(sourceFile),
+			getText: () => sourceText,
+			lineAt: () => ({ text: sourceText })
+		};
+		const position = new vscode.Position(
+			0,
+			sourceText.indexOf('views.home.title') + 2
+		);
+		const definition = provideDefinition(document, position);
+
+		assert.ok(definition);
+		assert.strictEqual(
+			definition.uri.fsPath.toLowerCase(),
+			splitFile.toLowerCase()
+		);
+		assert.strictEqual(definition.range.start.line, 1);
+		assert.strictEqual(definition.range.start.character, 2);
+		assert.strictEqual(
+			definition.range.end.character,
+			'  \'views.home.title\''.length
+		);
+	});
+
+	test('Locale key location resolves nested JSON and generated module keys', () => {
+		const json = [
+			'{',
+			'  "pages": {',
+			'    "home": {',
+			'      "title": "首页"',
+			'    }',
+			'  }',
+			'}'
+		].join('\n');
+		const jsonLocation = getJsonKeyLocation(json, 'pages.home.title');
+		assert.deepStrictEqual(jsonLocation, {
+			startOffset: json.indexOf('"title"'),
+			endOffset: json.indexOf('"title"') + '"title"'.length
+		});
+
+		const module = [
+			'export default {',
+			"  'pages.home.title': '首页',",
+			'};'
+		].join('\n');
+		const moduleLocation = findJavaScriptKeyLocation(
+			module,
+			'pages.home.title'
+		);
+		assert.deepStrictEqual(moduleLocation, {
+			startOffset: module.indexOf("'pages.home.title'"),
+			endOffset:
+				module.indexOf("'pages.home.title'") +
+				"'pages.home.title'".length
+		});
+		assert.deepStrictEqual(
+			getLocaleKeyLocation(path.join(os.tmpdir(), 'missing-locale.json'), 'x'),
+			null
+		);
+	});
+
 	test('Inline translation preview caches locale files until they change', () => {
 		const tempDir = fs.mkdtempSync(
 			path.join(os.tmpdir(), 'localesail-locale-cache-')
@@ -894,6 +1128,92 @@ suite('Extension Test Suite', () => {
 		});
 		assert.strictEqual(parseCount, 2);
 		clearLocaleFileCache();
+	});
+
+	test('Inline translation preview updates immediately when a key line is deleted', () => {
+		const rootDir = fs.mkdtempSync(
+			path.join(os.tmpdir(), 'localesail-inline-edit-')
+		);
+		const sourceFile = path.join(rootDir, 'src', 'views', 'user', 'list.vue');
+		const localeFile = path.join(rootDir, 'src', 'locales', 'zh-cn.json');
+		let text = "this.$t('views.user.list.title')";
+		const appliedDecorations = [];
+		const decorationTypes = [];
+
+		fs.mkdirSync(path.dirname(sourceFile), { recursive: true });
+		fs.mkdirSync(path.dirname(localeFile), { recursive: true });
+		fs.writeFileSync(path.join(rootDir, 'package.json'), '{}', 'utf8');
+		fs.writeFileSync(
+			path.join(rootDir, 'localesailrc.json'),
+			JSON.stringify({
+				defaultLocalesPath: 'src/locales',
+				langFile: 'zh-cn.json'
+			}),
+			'utf8'
+		);
+		fs.writeFileSync(
+			localeFile,
+			JSON.stringify({ 'views.user.list.title': '用户列表' }),
+			'utf8'
+		);
+
+		const document = {
+			languageId: 'vue',
+			uri: { fsPath: sourceFile },
+			getText: () => text,
+			positionAt: (offset) => ({ line: 0, character: offset })
+		};
+		const editor = {
+			document,
+			selections: [],
+			setDecorations: (decorationType, options) => {
+				appliedDecorations.push({ decorationType, options });
+			}
+		};
+
+		const originalCreateTextEditorDecorationType =
+			vscode.window.createTextEditorDecorationType;
+		vscode.window.createTextEditorDecorationType = (options) => {
+			const decorationType = {
+				options,
+				disposed: false,
+				dispose: () => {
+					decorationType.disposed = true;
+				}
+			};
+			decorationTypes.push(decorationType);
+			return decorationType;
+		};
+
+		try {
+			assert.strictEqual(updateDecorations(editor), 1);
+			assert.strictEqual(appliedDecorations.length, 1);
+
+			const initialPreviewKeysSignature = getPreviewKeysSignature(editor);
+			text += '\nconst untouched = true;';
+			assert.strictEqual(
+				getPreviewKeysSignature(editor),
+				initialPreviewKeysSignature
+			);
+
+			text = '';
+			assert.notStrictEqual(
+				getPreviewKeysSignature(editor),
+				initialPreviewKeysSignature
+			);
+			assert.strictEqual(updateDecorations(editor), 0);
+			assert.strictEqual(decorationTypes[0].disposed, false);
+		} finally {
+			vscode.window.createTextEditorDecorationType =
+				originalCreateTextEditorDecorationType;
+		}
+
+		return new Promise((resolve) => {
+			setTimeout(() => {
+				assert.strictEqual(decorationTypes[0].disposed, true);
+				resolve();
+			}, 0);
+		});
 	});
 
 	test('Generated workspace config contains every contributed configuration key', () => {

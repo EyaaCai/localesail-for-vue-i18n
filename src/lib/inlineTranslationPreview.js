@@ -39,6 +39,7 @@ const maxLocaleFileCacheSize = 200;
 let refreshTimer;
 const decorationTypesByEditor = new Map();
 const focusedKeysSignatureByEditor = new Map();
+const previewKeysSignatureByEditor = new Map();
 const localeFileCache = new Map();
 
 const trimLocaleFileCache = () => {
@@ -455,6 +456,7 @@ const disposeEditorDecorations = (editor) => {
   disposeDecorationTypes(decorationTypesByEditor.get(editor) || []);
   decorationTypesByEditor.delete(editor);
   focusedKeysSignatureByEditor.delete(editor);
+  previewKeysSignatureByEditor.delete(editor);
 };
 
 const disposeInvisibleEditorDecorations = () => {
@@ -470,6 +472,7 @@ const disposeAllDecorationTypes = () => {
   Array.from(decorationTypesByEditor.values()).forEach(disposeDecorationTypes);
   decorationTypesByEditor.clear();
   focusedKeysSignatureByEditor.clear();
+  previewKeysSignatureByEditor.clear();
 };
 
 const getVisibleEditors = () => {
@@ -489,6 +492,14 @@ const getStoredFocusedKeySignature = (editor) => {
 const setStoredFocusedKeySignature = (editor, signature) => {
   if (!editor) return;
   focusedKeysSignatureByEditor.set(editor, signature || '');
+};
+
+const getStoredPreviewKeysSignature = (editor) =>
+  previewKeysSignatureByEditor.get(editor) || '';
+
+const setStoredPreviewKeysSignature = (editor, signature) => {
+  if (!editor) return;
+  previewKeysSignatureByEditor.set(editor, signature || '');
 };
 
 const refreshVisibleDecorations = (options = {}) => {
@@ -590,6 +601,30 @@ const getFocusedKeySignature = (editor = window.activeTextEditor) => {
     .join('|');
 };
 
+const getPreviewKeysSignature = (editor = window.activeTextEditor) => {
+  if (!isPreviewEditor(editor)) return '';
+
+  const document = editor.document;
+  const text = document.getText();
+  const { scopedTranslateScopes, translateCallers } = getTranslateContext(
+    document.uri.fsPath,
+    text,
+  );
+
+  return JSON.stringify({
+    scopedTranslateScopes,
+    translateCallers,
+    matches: getI18nKeyMatches(text, translateCallers).map(
+      ({ caller, key, index, length }) => ({
+        caller,
+        key,
+        index,
+        length,
+      }),
+    ),
+  });
+};
+
 const updateDecorations = (
   editor = window.activeTextEditor,
   { force = false, restoreFocusedRange = isActiveEditor(editor) } = {},
@@ -647,6 +682,7 @@ const updateDecorations = (
   const previousDecorationTypes = decorationTypesByEditor.get(editor) || [];
   decorationTypesByEditor.set(editor, nextDecorationTypes);
   setStoredFocusedKeySignature(editor, nextFocusedKeys.join('|'));
+  setStoredPreviewKeysSignature(editor, getPreviewKeysSignature(editor));
   setTimeout(() => disposeDecorationTypes(previousDecorationTypes), 0);
   return count;
 };
@@ -665,12 +701,23 @@ const registerInlineTranslationPreview = (context) => {
     window.onDidChangeTextEditorSelection((event) => {
       const activeEditor = window.activeTextEditor;
       if (activeEditor && event.textEditor === activeEditor) {
+        const nextPreviewKeysSignature =
+          getPreviewKeysSignature(activeEditor);
         const nextFocusedKeysSignature = getFocusedKeySignature(activeEditor);
-        if (
-          nextFocusedKeysSignature === getStoredFocusedKeySignature(activeEditor)
-        ) {
+        const previewKeysChanged =
+          nextPreviewKeysSignature !==
+          getStoredPreviewKeysSignature(activeEditor);
+        const shouldRefresh =
+          previewKeysChanged ||
+          nextFocusedKeysSignature !==
+            getStoredFocusedKeySignature(activeEditor);
+        if (!shouldRefresh) {
           return;
         }
+        setStoredPreviewKeysSignature(
+          activeEditor,
+          nextPreviewKeysSignature,
+        );
         setStoredFocusedKeySignature(activeEditor, nextFocusedKeysSignature);
         updateDecorations(activeEditor, { restoreFocusedRange: true });
       }
@@ -707,12 +754,14 @@ module.exports._private = {
   clearLocaleFileCache,
   getAvailableLocales,
   getCandidateKeys,
+  getTranslateContext,
   getFocusedKeySignature,
   getPreviewLocaleName,
   getSourcePathPrefix,
   isDefaultLocalesPathFallback,
   isFocusedRange,
   formatPreviewText,
+  getPreviewKeysSignature,
   readCachedLocaleFile,
   resolveLocaleValues,
   updateDecorations,

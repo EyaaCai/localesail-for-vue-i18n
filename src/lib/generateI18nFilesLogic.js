@@ -16,8 +16,42 @@ const toJsSingleQuotedString = (value = '') =>
     .replace(/\u2028/g, '\\u2028')
     .replace(/\u2029/g, '\\u2029')}'`;
 
+const isJsIdentifier = (value = '') =>
+  /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(String(value));
+
+const toJsObjectKey = (value = '') =>
+  isJsIdentifier(value) ? String(value) : toJsSingleQuotedString(value);
+
 const formatLocaleModuleEntry = (key, value) =>
-  `  ${toJsSingleQuotedString(key)}: ${toJsSingleQuotedString(value)},`;
+  `  ${toJsObjectKey(key)}: ${toJsSingleQuotedString(value)},`;
+
+const insertLocaleModuleEntries = (
+  oldContent,
+  braceIndex,
+  exportDefaultEndIndex,
+  items,
+) => {
+  const body = oldContent.substring(braceIndex + 1, exportDefaultEndIndex);
+  const bodyWithoutTrailingWhitespace = body.replace(/\s+$/, '');
+  const trailingWhitespace = body.slice(bodyWithoutTrailingWhitespace.length);
+  const hasExistingEntries = bodyWithoutTrailingWhitespace.trim().length > 0;
+  const needsComma =
+    hasExistingEntries && !bodyWithoutTrailingWhitespace.trimEnd().endsWith(',');
+  const separator = hasExistingEntries
+    ? `${needsComma ? ',' : ''}\n`
+    : '';
+  const nextBody =
+    bodyWithoutTrailingWhitespace +
+    separator +
+    items.join('\n') +
+    (trailingWhitespace || '\n');
+
+  return (
+    oldContent.substring(0, braceIndex + 1) +
+    nextBody +
+    oldContent.substring(exportDefaultEndIndex)
+  );
+};
 
 const getFormatOptions = (uri) => {
   const editorConfig = workspace.getConfiguration('editor', uri);
@@ -208,24 +242,46 @@ module.exports = ({ context, uri }) => {
         // 合并现有对象与新数据，实现“存在则更新，不存在则新增”
         const mergedObj = { ...existingObj };
         let hasChange = false;
+        let hasExistingValueChange = false;
+        const addedItems = [];
         Object.keys(_data[key]).forEach(k => {
           const finalKey = useHashKeyOnly ? k : `${key}.${k}`;
           const newVal = String(_data[key][k] || '');
           if (mergedObj[finalKey] !== newVal) {
+            if (Object.prototype.hasOwnProperty.call(mergedObj, finalKey)) {
+              hasExistingValueChange = true;
+            } else {
+              addedItems.push(formatLocaleModuleEntry(finalKey, newVal));
+            }
             mergedObj[finalKey] = newVal;
             hasChange = true;
           }
         });
 
         if (hasChange && exportDefaultEndIndex !== -1 && braceIndex !== -1) {
-          const mergedItems = Object.keys(mergedObj).map(fk => {
-            return formatLocaleModuleEntry(fk, mergedObj[fk]);
-          });
-
           // 重新构造 export default 块的内容，保留括号前后的原始代码（如 import 等）
-          const beforeBrace = oldContent.substring(0, braceIndex + 1);
-          const afterBrace = oldContent.substring(exportDefaultEndIndex);
-          const contentStr = beforeBrace + '\n' + mergedItems.join('\n') + '\n' + afterBrace;
+          const contentStr =
+            !hasExistingValueChange && addedItems.length > 0
+              ? insertLocaleModuleEntries(
+                  oldContent,
+                  braceIndex,
+                  exportDefaultEndIndex,
+                  addedItems,
+                )
+              : (() => {
+                  const mergedItems = Object.keys(mergedObj).map(fk =>
+                    formatLocaleModuleEntry(fk, mergedObj[fk]),
+                  );
+                  const beforeBrace = oldContent.substring(0, braceIndex + 1);
+                  const afterBrace = oldContent.substring(exportDefaultEndIndex);
+                  return (
+                    beforeBrace +
+                    '\n' +
+                    mergedItems.join('\n') +
+                    '\n' +
+                    afterBrace
+                  );
+                })();
 
           try {
             fs.writeFileSync(targetFilePath, contentStr, 'utf8');
@@ -283,6 +339,9 @@ module.exports = ({ context, uri }) => {
 
 module.exports._private = {
   formatLocaleModuleEntry,
+  isJsIdentifier,
+  insertLocaleModuleEntries,
   getFormatOptions,
+  toJsObjectKey,
   toJsSingleQuotedString,
 };

@@ -1,5 +1,5 @@
 const Puid = require('puid');
-const { getRange } = require('.');
+const { getRange, getVueScriptRangeAtLine, isLineInRange } = require('.');
 const {
   scriptRegexp,
   propertyRegexp,
@@ -118,7 +118,7 @@ module.exports = (currentEditor, options = {}) => {
     languageId === 'typescript' || languageId === 'typescriptreact';
   const isVue = languageId === 'vue';
 
-  const { template, script } = getRange(currentEditor);
+  const { template, script, scripts } = getRange(currentEditor);
   const lines = [];
   let inVueTemplateInterpolation = false;
   let vueTemplateDynamicAttributeQuote = null;
@@ -152,8 +152,8 @@ module.exports = (currentEditor, options = {}) => {
 
     //vue文件
     if (isVue) {
-      const inVueTemplate = i <= template.end && i >= template.begin;
-      const inVueScript = i <= script.end && i >= script.begin;
+      const inVueTemplate = isLineInRange(i, template);
+      const inVueScript = !!getVueScriptRangeAtLine({ script, scripts }, i);
       if (inVueTemplate) {
         const vueTemplateInterpolationState =
           getVueTemplateInterpolationLineState(
