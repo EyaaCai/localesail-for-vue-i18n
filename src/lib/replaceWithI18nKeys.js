@@ -1,4 +1,11 @@
-const { msg, Position, Range, executeCommand } = require('../utils/vs');
+const {
+  msg,
+  Position,
+  Range,
+  WorkspaceEdit,
+  executeCommand,
+  workspace,
+} = require('../utils/vs');
 const {
   getRange,
   getLocales,
@@ -38,6 +45,59 @@ const fs = require('fs');
 
 const cnRegexp = /[\u4e00-\u9fa5]/;
 const vueTemplateInterpolationRegexp = /\{\{\s*([^]*?)\s*\}\}/g;
+const saveRetryDelays = [100, 250, 500];
+
+const getFormatOptions = (uri) => {
+  const editorConfig = workspace.getConfiguration('editor', uri);
+  const tabSize = editorConfig.get('tabSize', 2);
+
+  return {
+    tabSize: typeof tabSize === 'number' ? tabSize : 2,
+    insertSpaces: editorConfig.get('insertSpaces', true) !== false,
+  };
+};
+
+const formatDocument = async (
+  document,
+  { execute = executeCommand, workspaceApi = workspace } = {},
+) => {
+  try {
+    const edits = await execute(
+      'vscode.executeFormatDocumentProvider',
+      document.uri,
+      getFormatOptions(document.uri),
+    );
+    if (!Array.isArray(edits) || edits.length === 0) return true;
+
+    const edit = new WorkspaceEdit();
+    edit.set(document.uri, edits);
+    return await workspaceApi.applyEdit(edit);
+  } catch (error) {
+    console.error('Failed to format replaced document:', error);
+    return false;
+  }
+};
+
+const saveDocument = async (
+  document,
+  { wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)) } = {},
+) => {
+  let lastError;
+  for (let attempt = 0; attempt <= saveRetryDelays.length; attempt++) {
+    if (attempt > 0) await wait(saveRetryDelays[attempt - 1]);
+
+    try {
+      if (await document.save()) return true;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (lastError) {
+    console.error('Failed to save replaced document:', lastError);
+  }
+  return false;
+};
 
 const getExistingTranslateFunc = (text = '') => {
   const useI18nAliasMatch = text.match(
@@ -57,11 +117,14 @@ const getExistingTranslateFunc = (text = '') => {
 
 const getTranslateFunc = ({
   isScript,
+  isTemplate,
   isSetup,
+  isScriptSetup,
   isTS,
   isMixinFile,
   existingTranslateFunc,
 }) => {
+  if (isTemplate) return isScriptSetup ? 't' : '$t';
   if (isSetup) {
     if (
       existingTranslateFunc &&
@@ -101,7 +164,11 @@ const replaceVueTemplateLiteralTexts = (str = '', localeObj = {}, tFunc) => {
   return result;
 };
 
-const replaceVueTemplateLiteralSegment = (segment = '', localeObj = {}, tFunc) => {
+const replaceVueTemplateLiteralSegment = (
+  segment = '',
+  localeObj = {},
+  tFunc,
+) => {
   const text = segment.trim();
   if (!cnRegexp.test(text)) return segment;
   const result = localeObj[text];
@@ -118,6 +185,7 @@ const resoloveLine = ({
   isScript,
   isTemplate,
   isSetup,
+  isScriptSetup,
   isTS,
   isMixinFile,
   existingTranslateFunc,
@@ -126,7 +194,9 @@ const resoloveLine = ({
     let temp = str;
     const tFunc = getTranslateFunc({
       isScript,
+      isTemplate,
       isSetup,
+      isScriptSetup,
       isTS,
       isMixinFile,
       existingTranslateFunc,
@@ -237,6 +307,9 @@ const replaceWithI18nKeys = ({ editor, context }) => {
       let inVueTemplateInterpolation = false;
       let vueTemplateDynamicAttributeQuote = null;
       let skipNextLine = false;
+      const isScriptSetup =
+        isVue &&
+        (range.scripts || []).some((scriptRange) => scriptRange.isSetup);
       const hasTemplateBegin = typeof range.template.begin === 'number';
       const hasTemplateEnd = typeof range.template.end === 'number';
       const hasIncompleteTemplate = hasTemplateBegin !== hasTemplateEnd;
@@ -311,6 +384,7 @@ const replaceWithI18nKeys = ({ editor, context }) => {
               isScript,
               isTemplate,
               isSetup,
+              isScriptSetup,
               isTS,
               isMixinFile: isMixinFileContext,
               existingTranslateFunc,
@@ -328,6 +402,7 @@ const replaceWithI18nKeys = ({ editor, context }) => {
               isScript,
               isTemplate,
               isSetup,
+              isScriptSetup,
               isTS,
               isMixinFile: isMixinFileContext,
               existingTranslateFunc,
@@ -345,6 +420,7 @@ const replaceWithI18nKeys = ({ editor, context }) => {
               isScript,
               isTemplate,
               isSetup,
+              isScriptSetup,
               isTS,
               isMixinFile: isMixinFileContext,
               existingTranslateFunc,
@@ -363,8 +439,16 @@ const replaceWithI18nKeys = ({ editor, context }) => {
           const end = new Position(lineCount + 1, 0);
           editBuilder.replace(new Range(new Position(0, 0), end), editText);
         })
-        .then((success) => {
+        .then(async (success) => {
           if (success) {
+            await formatDocument(currentEditor.document);
+            const saved = await saveDocument(currentEditor.document);
+            if (!saved) {
+              msg.error(
+                `${operation.replaceWithI18nKeys.title} failed to save the document.`,
+              );
+              return;
+            }
             showMessage({
               message: `${operation.replaceWithI18nKeys.title} success with \'${prefix}\' in ${localesPath}!`,
               needOpen: false,
@@ -381,6 +465,9 @@ const replaceWithI18nKeys = ({ editor, context }) => {
 
 module.exports = replaceWithI18nKeys;
 module.exports._private = {
+  formatDocument,
+  getFormatOptions,
+  saveDocument,
   getExistingTranslateFunc,
   getTranslateFunc,
 };

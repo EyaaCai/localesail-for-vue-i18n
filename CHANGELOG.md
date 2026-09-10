@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.4.4 - 2026-09-10
+
+- **Replace Copy 翻译函数修复**：Vue 2 template 使用 `$t(...)`，Vue 3 `<script setup>` template 使用 `t(...)`，并正确区分 Options API 的 `setup()` 函数。
+- **替换后自动处理**：`Replace Copy with i18n Keys` 替换完成后自动格式化并保存，保存暂时失败时会自动重试，最终失败会明确提示。
+- **拆分语言包格式化稳定性**：`Build Split Locale Modules` 在 formatter 尚未就绪时自动重试，并保存最新文档模型，减少部分文件格式化失败或结果未落盘的问题。
+
 ## 0.4.3
 
 - **Key Definition Jump**：光标位于国际化 key 时，支持按 `F12` 或 `Ctrl+左键`跳转到对应语言文件中的 key 定义位置；兼容拆分后的 JS/TS 语言模块、JSON 语言包、嵌套 key、短 hash key、局部翻译函数和路径别名。

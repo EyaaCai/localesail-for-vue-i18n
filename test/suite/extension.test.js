@@ -28,11 +28,16 @@ const {
 } = require('../../src/utils/interpolation');
 const retrieveCN = require('../../src/utils/retrieveCN');
 const {
+	formatDocument,
+	getFormatOptions,
+	saveDocument: saveReplacedDocument,
 	getExistingTranslateFunc,
 	getTranslateFunc,
 } = require('../../src/lib/replaceWithI18nKeys')._private;
 const {
 	formatLocaleModuleEntry,
+	getFormatEdits,
+	saveDocument,
 	isJsIdentifier,
 	insertLocaleModuleEntries,
 	toJsObjectKey,
@@ -475,6 +480,98 @@ suite('Extension Test Suite', () => {
 			}),
 			't'
 		);
+		assert.strictEqual(
+			getTranslateFunc({
+				isTemplate: true,
+				isSetup: false,
+				isScriptSetup: false,
+				isTS: false,
+				isScript: false,
+				isMixinFile: false,
+				existingTranslateFunc: 'this.$t',
+			}),
+			'$t'
+		);
+		assert.strictEqual(
+			getTranslateFunc({
+				isTemplate: true,
+				isSetup: false,
+				isScriptSetup: true,
+				isTS: false,
+				isScript: false,
+				isMixinFile: false,
+				existingTranslateFunc: 'this.$t',
+			}),
+			't'
+		);
+	});
+
+	test('Replace I18n formats the document after applying replacement edits', async () => {
+		const options = getFormatOptions(vscode.Uri.file(__filename));
+		assert.strictEqual(typeof options.tabSize, 'number');
+		assert.strictEqual(typeof options.insertSpaces, 'boolean');
+
+		const document = {
+			uri: vscode.Uri.file(__filename),
+		};
+		let commandName = null;
+		let applied = false;
+		const result = await formatDocument(document, {
+			execute: async (name) => {
+				commandName = name;
+				return [
+					{
+						range: new vscode.Range(
+							new vscode.Position(0, 0),
+							new vscode.Position(0, 0)
+						),
+						newText: ''
+					}
+				];
+			},
+			workspaceApi: {
+				applyEdit: async () => {
+					applied = true;
+					return true;
+				}
+			}
+		});
+
+		assert.strictEqual(result, true);
+		assert.strictEqual(commandName, 'vscode.executeFormatDocumentProvider');
+		assert.strictEqual(applied, true);
+	});
+
+	test('Replace I18n saves the document after formatting', async () => {
+		let saveCount = 0;
+		const saved = await saveReplacedDocument(
+			{
+				save: async () => {
+					saveCount += 1;
+					return true;
+				}
+			},
+			{ wait: async () => {} }
+		);
+
+		assert.strictEqual(saved, true);
+		assert.strictEqual(saveCount, 1);
+	});
+
+	test('Replace I18n retries saving when the document save is temporarily unavailable', async () => {
+		let saveCount = 0;
+		const saved = await saveReplacedDocument(
+			{
+				save: async () => {
+					saveCount += 1;
+					return saveCount === 3;
+				}
+			},
+			{ wait: async () => {} }
+		);
+
+		assert.strictEqual(saved, true);
+		assert.strictEqual(saveCount, 3);
 	});
 
 	test('Vue Options API setup function is treated as setup context', () => {
@@ -538,6 +635,23 @@ suite('Extension Test Suite', () => {
 				'</script>',
 			].join('\n'),
 			'vue'
+		);
+		const range = getRange(editor);
+		assert.strictEqual(range.scripts[0].isSetup, true);
+		assert.strictEqual(range.scripts[1].isSetup, false);
+		assert.strictEqual(
+			getTranslateFunc({
+				isTemplate: true,
+				isScriptSetup: range.scripts.some(
+					(scriptRange) => scriptRange.isSetup
+				),
+				isSetup: false,
+				isTS: false,
+				isScript: false,
+				isMixinFile: false,
+				existingTranslateFunc: 'this.$t',
+			}),
+			't'
 		);
 
 		assert.deepStrictEqual(Object.values(retrieveCN(editor)).sort(), [
@@ -620,6 +734,57 @@ suite('Extension Test Suite', () => {
 			formatLocaleModuleEntry('constant.warehouse.wyxh4b40', '\u4f60\u597d'),
 			"  'constant.warehouse.wyxh4b40': '\u4f60\u597d',",
 		);
+	});
+
+	test('Split locale formatting retries when the formatter is not ready', async () => {
+		let attempts = 0;
+		let openCount = 0;
+		const edits = await getFormatEdits(vscode.Uri.file(__filename), {
+			openTextDocument: async () => {
+				openCount += 1;
+			},
+			wait: async () => {},
+			execute: async () => {
+				attempts += 1;
+				if (attempts < 3) {
+					throw new Error('formatter is not ready');
+				}
+				return [];
+			}
+		});
+
+		assert.deepStrictEqual(edits, []);
+		assert.strictEqual(attempts, 3);
+		assert.strictEqual(openCount, 3);
+	});
+
+	test('Split locale formatting saves the latest document model', async () => {
+		let openCount = 0;
+		let saveCount = 0;
+		const firstDocument = {
+			save: async () => {
+				saveCount += 1;
+				return false;
+			}
+		};
+		const latestDocument = {
+			save: async () => {
+				saveCount += 1;
+				return true;
+			}
+		};
+		const uri = vscode.Uri.file(__filename);
+		const saved = await saveDocument(uri, {
+			openTextDocument: async () => {
+				openCount += 1;
+				return openCount === 1 ? firstDocument : latestDocument;
+			},
+			wait: async () => {}
+		});
+
+		assert.strictEqual(saved, true);
+		assert.strictEqual(openCount, 2);
+		assert.strictEqual(saveCount, 2);
 	});
 
 	test('Adding split locale entries preserves existing multiline template literals', () => {

@@ -2,10 +2,18 @@ const fs = require('fs');
 const path = require('path');
 const mkdirp = require('mkdirp');
 const { getCustomSetting, getLocales, showMessage, getEditor } = require('../utils/index');
-const { executeCommand, file, WorkspaceEdit, workspace } = require('../utils/vs');
+const {
+  executeCommand,
+  file,
+  Position,
+  Range,
+  WorkspaceEdit,
+  workspace,
+} = require('../utils/vs');
 const safeEval = require('safe-eval');
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const formatRetryDelays = [100, 250, 500, 1000];
 
 const toJsSingleQuotedString = (value = '') =>
   `'${String(value)
@@ -63,42 +71,104 @@ const getFormatOptions = (uri) => {
   };
 };
 
-const getFormatEdits = async (uri) => {
-  await workspace.openTextDocument(uri);
-  try {
-    return await executeCommand(
-      'vscode.executeFormatDocumentProvider',
-      uri,
-      getFormatOptions(uri),
-    );
-  } catch (e) {
-    // Newly-created files can be visible on disk before VS Code has a text model
-    // or formatter ready for them. A short retry keeps first-run generation stable.
-    await delay(100);
-    await workspace.openTextDocument(uri);
-    return executeCommand(
-      'vscode.executeFormatDocumentProvider',
-      uri,
-      getFormatOptions(uri),
-    );
+const getFormatEdits = async (
+  uri,
+  {
+    execute = executeCommand,
+    openTextDocument = workspace.openTextDocument,
+    wait = delay,
+  } = {},
+) => {
+  let lastError;
+  for (let attempt = 0; attempt <= formatRetryDelays.length; attempt++) {
+    if (attempt > 0) await wait(formatRetryDelays[attempt - 1]);
+
+    try {
+      await openTextDocument(uri);
+      const edits = await execute(
+        'vscode.executeFormatDocumentProvider',
+        uri,
+        getFormatOptions(uri),
+      );
+      if (edits === undefined || edits === null) return [];
+      if (Array.isArray(edits)) return edits;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (lastError) throw lastError;
+  return [];
+};
+
+const syncDocumentWithFile = async (uri, document) => {
+  const diskContent = fs.readFileSync(uri.fsPath, 'utf8');
+  if (document.getText() === diskContent) return;
+
+  const edit = new WorkspaceEdit();
+  edit.replace(
+    uri,
+    new Range(new Position(0, 0), document.positionAt(document.getText().length)),
+    diskContent,
+  );
+  const applied = await workspace.applyEdit(edit);
+  if (!applied) {
+    throw new Error(`Failed to refresh generated document: ${uri.fsPath}`);
   }
 };
 
-const formatFiles = async (filePaths) => {
-  for (const filePath of filePaths) {
-    const uri = file(filePath);
-    const edits = await getFormatEdits(uri);
-    if (Array.isArray(edits) && edits.length) {
-      const edit = new WorkspaceEdit();
-      edit.set(uri, edits);
-      await workspace.applyEdit(edit);
-    }
+const saveDocument = async (
+  uri,
+  {
+    openTextDocument = workspace.openTextDocument,
+    wait = delay,
+  } = {},
+) => {
+  let lastError;
+  for (let attempt = 0; attempt <= formatRetryDelays.length; attempt++) {
+    if (attempt > 0) await wait(formatRetryDelays[attempt - 1]);
+
     try {
-      const doc = await workspace.openTextDocument(uri);
-      await doc.save();
-    } catch (e) {
-      console.error(`Failed to save formatted file: ${filePath}`, e);
+      const document = await openTextDocument(uri);
+      if (await document.save()) return true;
+    } catch (error) {
+      lastError = error;
     }
+  }
+
+  if (lastError) {
+    console.error(`Failed to save formatted file: ${uri.fsPath}`, lastError);
+  }
+  return false;
+};
+
+const formatFiles = async (filePaths) => {
+  const failedFiles = [];
+  for (const filePath of filePaths) {
+    try {
+      const uri = file(filePath);
+      const sourceDocument = await workspace.openTextDocument(uri);
+      await syncDocumentWithFile(uri, sourceDocument);
+      const edits = await getFormatEdits(uri);
+      if (Array.isArray(edits) && edits.length) {
+        const edit = new WorkspaceEdit();
+        edit.set(uri, edits);
+        const applied = await workspace.applyEdit(edit);
+        if (!applied) {
+          throw new Error(`Failed to apply formatting edits: ${filePath}`);
+        }
+      }
+      const saved = await saveDocument(uri);
+      if (!saved) {
+        throw new Error(`Failed to save formatted file: ${filePath}`);
+      }
+    } catch (error) {
+      failedFiles.push(filePath);
+      console.error(`Failed to format generated file: ${filePath}`, error);
+    }
+  }
+  if (failedFiles.length > 0) {
+    throw new Error(`Failed to format generated files: ${failedFiles.join(', ')}`);
   }
 };
 
@@ -339,6 +409,9 @@ module.exports = ({ context, uri }) => {
 
 module.exports._private = {
   formatLocaleModuleEntry,
+  formatFiles,
+  getFormatEdits,
+  saveDocument,
   isJsIdentifier,
   insertLocaleModuleEntries,
   getFormatOptions,
