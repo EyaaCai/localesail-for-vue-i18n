@@ -3,6 +3,92 @@ const vueTemplateInterpolationRegexp = /\{\{\s*([^]*?)\s*\}\}/g;
 const interpolationLiteralRegexp =
   /(["'])(?:\\.|(?!\1)[^\\\r\n])*[\u4e00-\u9fa5](?:\\.|(?!\1)[^\\\r\n])*\1/g;
 
+const escapeSequenceMap = {
+  0: '\0',
+  b: '\b',
+  f: '\f',
+  n: '\n',
+  r: '\r',
+  t: '\t',
+  v: '\v',
+};
+
+const isHex = (value = '') => /^[0-9a-fA-F]+$/.test(value);
+
+const toCodePoint = (hex) => {
+  const codePoint = parseInt(hex, 16);
+  if (!Number.isFinite(codePoint) || codePoint > 0x10ffff) return null;
+  return String.fromCodePoint(codePoint);
+};
+
+// 把 JS 字符串字面量内容还原成运行时值，使提取出的文案保留换行、制表符等语义
+const unescapeStringLiteral = (value = '') => {
+  const source = String(value);
+  if (!source.includes('\\')) return source;
+
+  let result = '';
+  for (let index = 0; index < source.length; index++) {
+    const char = source[index];
+    if (char !== '\\') {
+      result += char;
+      continue;
+    }
+
+    const next = source[index + 1];
+    if (next === undefined) {
+      result += char;
+      break;
+    }
+
+    if (next === '\r') {
+      index += source[index + 2] === '\n' ? 2 : 1;
+      continue;
+    }
+    if (next === '\n' || next === '\u2028' || next === '\u2029') {
+      index += 1;
+      continue;
+    }
+    if (escapeSequenceMap[next]) {
+      result += escapeSequenceMap[next];
+      index += 1;
+      continue;
+    }
+    if (next === 'x') {
+      const hex = source.slice(index + 2, index + 4);
+      const parsed = hex.length === 2 && isHex(hex) ? toCodePoint(hex) : null;
+      if (parsed !== null) {
+        result += parsed;
+        index += 3;
+        continue;
+      }
+    }
+    if (next === 'u') {
+      if (source[index + 2] === '{') {
+        const end = source.indexOf('}', index + 3);
+        const hex = end === -1 ? '' : source.slice(index + 3, end);
+        const parsed = hex && isHex(hex) ? toCodePoint(hex) : null;
+        if (parsed !== null) {
+          result += parsed;
+          index = end;
+          continue;
+        }
+      } else {
+        const hex = source.slice(index + 2, index + 6);
+        const parsed = hex.length === 4 && isHex(hex) ? toCodePoint(hex) : null;
+        if (parsed !== null) {
+          result += parsed;
+          index += 5;
+          continue;
+        }
+      }
+    }
+
+    result += next;
+    index += 1;
+  }
+  return result;
+};
+
 const hasTemplateInterpolation = (str = '') =>
   str.startsWith('`') &&
   str.endsWith('`') &&
@@ -116,7 +202,7 @@ const getTemplateInterpolationLiteralTexts = (str = '') => {
     let match;
     interpolationLiteralRegexp.lastIndex = 0;
     while ((match = interpolationLiteralRegexp.exec(expression))) {
-      texts.push(stripWrapperQuotes(match[0]));
+      texts.push(unescapeStringLiteral(stripWrapperQuotes(match[0])));
     }
     interpolationLiteralRegexp.lastIndex = 0;
     return _;
@@ -127,7 +213,7 @@ const getTemplateInterpolationLiteralTexts = (str = '') => {
 const resolveTemplateInterpolationArg = (arg = '', localeObj = {}, funcName) => {
   if (!arg || !funcName) return arg;
   return arg.replace(interpolationLiteralRegexp, (literal) => {
-    const text = literal.slice(1, -1);
+    const text = unescapeStringLiteral(literal.slice(1, -1));
     const key = localeObj[text];
     return key ? buildI18nCall(funcName, key) : literal;
   });
@@ -190,4 +276,5 @@ module.exports = {
   normalizeTemplateInterpolation,
   normalizeVueTemplateInterpolation,
   getVueTemplateLiteralTexts,
+  unescapeStringLiteral,
 };

@@ -12,6 +12,7 @@ const {
 	propertyRegexp,
 	angleBracketSpaceRegexp,
 	spaceRegexp,
+	quotationRegexp,
 	getI18nKeyAtPosition,
 	getI18nKeyMatches
 } = require('../../src/utils/regex');
@@ -24,6 +25,7 @@ const {
 	getVueTemplateInterpolationLineState,
 	getVueTemplateLiteralTexts,
 	resolveTemplateInterpolationArg,
+	unescapeStringLiteral,
 	getVueTemplateInterpolationArgs
 } = require('../../src/utils/interpolation');
 const retrieveCN = require('../../src/utils/retrieveCN');
@@ -33,10 +35,12 @@ const {
 	saveDocument: saveReplacedDocument,
 	getExistingTranslateFunc,
 	getTranslateFunc,
+	resoloveLine,
 } = require('../../src/lib/replaceWithI18nKeys')._private;
 const {
 	formatLocaleModuleEntry,
 	getFormatEdits,
+	getIndentString,
 	saveDocument,
 	isJsIdentifier,
 	insertLocaleModuleEntries,
@@ -45,6 +49,9 @@ const {
 } =
 	require('../../src/lib/generateI18nFilesLogic')._private;
 const { isMixinFile } = require('../../src/utils');
+const {
+	mergeExtractedEntries
+} = require('../../src/lib/updateJson')._private;
 const {
 	getLocaleValueByKey,
 	getRange,
@@ -715,6 +722,241 @@ suite('Extension Test Suite', () => {
 		assert.deepStrictEqual(
 			Function(`return ({\n${entry}\n});`)(),
 			{ [key]: value }
+		);
+		assert.strictEqual(
+			formatLocaleModuleEntry('a b', '值', '\t'),
+			"\t'a b': '值',"
+		);
+	});
+
+	test('Extracted script string literals are unescaped to runtime values', () => {
+		const editor = createEditor(
+			[
+				"const tip = '不是哥们\\n你好';",
+				"const path = 'C:\\\\tmp 目录';",
+				'const label = `订单\\t编号`;',
+			].join('\n'),
+			'javascript'
+		);
+		assert.deepStrictEqual(Object.values(retrieveCN(editor)).sort(), [
+			'C:\\tmp 目录',
+			'不是哥们\n你好',
+			'订单\t编号',
+		].sort());
+	});
+
+	test('String literal unescape keeps unknown escapes and lone backslashes intact', () => {
+		assert.strictEqual(unescapeStringLiteral('a\\nb'), 'a\nb');
+		assert.strictEqual(unescapeStringLiteral('a\\\\nb'), 'a\\nb');
+		assert.strictEqual(unescapeStringLiteral('\\u4e2d'), '中');
+		assert.strictEqual(unescapeStringLiteral('a\\qb'), 'aqb');
+		assert.strictEqual(unescapeStringLiteral('a\\'), 'a\\');
+		assert.strictEqual(unescapeStringLiteral('行尾\\\n续行'), '行尾续行');
+	});
+
+	test('Interpolation literal keeps runtime escape semantics', () => {
+		const editor = createEditor(
+			"const msg = `前${'不是哥们\\n你好'}后`;",
+			'javascript'
+		);
+		assert.deepStrictEqual(
+			Object.values(retrieveCN(editor)).sort(),
+			['不是哥们\n你好', '前{0}后'].sort()
+		);
+	});
+
+	test('Replace matches locale values that were unescaped during extraction', () => {
+		const lineText = "const tip = '不是哥们\\n你好';";
+		const { lineText: replaced } = resoloveLine({
+			lineText,
+			reg: scriptRegexp,
+			resoloveReg: quotationRegexp,
+			resoloveMainReg: quotationRegexp,
+			localeObj: { '不是哥们\n你好': 'views.demo.ab12cd34' },
+			isScript: true,
+			isTemplate: false,
+			isSetup: false,
+			isScriptSetup: false,
+			isTS: false,
+			isMixinFile: false,
+			existingTranslateFunc: null,
+		});
+		assert.strictEqual(replaced, "const tip = $t('views.demo.ab12cd34');");
+	});
+
+	test('Extracted template text unescapes newline sequences', () => {
+		const editor = createEditor(
+			[
+				'<template>',
+				'  <div>',
+				'    不是哥们\\n你好菜',
+				'  </div>',
+				'</template>',
+			].join('\n'),
+			'vue'
+		);
+		assert.deepStrictEqual(Object.values(retrieveCN(editor)), [
+			'不是哥们\n你好菜',
+		]);
+	});
+
+	test('Template text segments around interpolation unescape newline sequences', () => {
+		const editor = createEditor(
+			[
+				'<template>',
+				'  <div>发运单号：{{ detail.id }}\\n请核对</div>',
+				'</template>',
+			].join('\n'),
+			'vue'
+		);
+		assert.deepStrictEqual(Object.values(retrieveCN(editor)).sort(), [
+			'发运单号：',
+			'\n请核对',
+		].sort());
+	});
+
+	test('Replace matches template text values that were unescaped during extraction', () => {
+		const lineText = '不是哥们\\n你好菜';
+		const { lineText: replaced } = resoloveLine({
+			lineText,
+			reg: angleBracketSpaceRegexp,
+			resoloveReg: spaceRegexp,
+			resoloveMainReg: quotationRegexp,
+			localeObj: { '不是哥们\n你好菜': 'views.customer.goods.6abc1234' },
+			isScript: false,
+			isTemplate: true,
+			isSetup: false,
+			isScriptSetup: true,
+			isTS: false,
+			isMixinFile: false,
+			existingTranslateFunc: null,
+		});
+		assert.strictEqual(replaced, "{{t('views.customer.goods.6abc1234')}}");
+	});
+
+	test('Replace matches interpolation-adjacent segments with unescaped values', () => {
+		const lineText = '发运单号：{{ detail.id }}\\n请核对';
+		const { lineText: replaced } = resoloveLine({
+			lineText,
+			reg: angleBracketSpaceRegexp,
+			resoloveReg: spaceRegexp,
+			resoloveMainReg: quotationRegexp,
+			localeObj: {
+				'发运单号：': 'views.customer.print_page.p1',
+				'\n请核对': 'views.customer.print_page.p2',
+			},
+			isScript: false,
+			isTemplate: true,
+			isSetup: false,
+			isScriptSetup: true,
+			isTS: false,
+			isMixinFile: false,
+			existingTranslateFunc: null,
+		});
+		assert.strictEqual(
+			replaced,
+			"{{t('views.customer.print_page.p1')}}{{ detail.id }}{{t('views.customer.print_page.p2')}}"
+		);
+	});
+
+	test('Extracted attribute lines produce a single unescaped entry', () => {
+		const editor = createEditor(
+			[
+				'<template>',
+				'  <div',
+				'    title="不是哥们\\n你好菜"',
+				'  ></div>',
+				'</template>',
+			].join('\n'),
+			'vue'
+		);
+		assert.deepStrictEqual(Object.values(retrieveCN(editor)), [
+			'不是哥们\n你好菜',
+		]);
+	});
+
+	test('Replace matches attribute values that were unescaped during extraction', () => {
+		const lineText = '    title="不是哥们\\n你好菜"';
+		const { lineText: replaced } = resoloveLine({
+			lineText,
+			reg: propertyRegexp,
+			resoloveReg: spaceRegexp,
+			resoloveMainReg: quotationRegexp,
+			localeObj: { '不是哥们\n你好菜': 'views.customer.goods.a1b2c3d4' },
+			isScript: false,
+			isTemplate: true,
+			isSetup: false,
+			isScriptSetup: true,
+			isTS: false,
+			isMixinFile: false,
+			existingTranslateFunc: null,
+		});
+		assert.strictEqual(
+			replaced,
+			"    :title=\"t('views.customer.goods.a1b2c3d4')\""
+		);
+	});
+
+	test('Update merge treats legacy escaped values as the same copy', () => {
+		const merged = mergeExtractedEntries(
+			{
+				beqy2a00: '不是哥们\n你好菜',
+				beqy2m80: '不是哥们\\n你好菜',
+			},
+			{ '6abc1234': '不是哥们\n你好菜' }
+		);
+		assert.deepStrictEqual(merged, { '6abc1234': '不是哥们\n你好菜' });
+	});
+
+	test('Format options follow the indentation of neighbor files', () => {
+		const rootDir = fs.mkdtempSync(
+			path.join(os.tmpdir(), 'localesail-format-options-')
+		);
+		for (const name of ['spaces2', 'spaces4', 'tabs']) {
+			fs.mkdirSync(path.join(rootDir, name), { recursive: true });
+		}
+		fs.writeFileSync(
+			path.join(rootDir, 'spaces2', 'existing.ts'),
+			'export default {\n  key: 1,\n};\n'
+		);
+		fs.writeFileSync(
+			path.join(rootDir, 'spaces4', 'existing.ts'),
+			'export default {\n    key: 1,\n};\n'
+		);
+		fs.writeFileSync(
+			path.join(rootDir, 'tabs', 'existing.ts'),
+			'export default {\n\tkey: 1,\n};\n'
+		);
+
+		assert.deepStrictEqual(
+			getFormatOptions(
+				vscode.Uri.file(path.join(rootDir, 'spaces2', 'index.ts'))
+			),
+			{ tabSize: 2, insertSpaces: true }
+		);
+		assert.deepStrictEqual(
+			getFormatOptions(
+				vscode.Uri.file(path.join(rootDir, 'spaces4', 'index.ts'))
+			),
+			{ tabSize: 4, insertSpaces: true }
+		);
+		assert.deepStrictEqual(
+			getFormatOptions(
+				vscode.Uri.file(path.join(rootDir, 'tabs', 'index.ts'))
+			),
+			{ tabSize: 2, insertSpaces: false }
+		);
+		assert.strictEqual(
+			getIndentString(path.join(rootDir, 'spaces2', 'index.ts')),
+			'  '
+		);
+		assert.strictEqual(
+			getIndentString(path.join(rootDir, 'spaces4', 'index.ts')),
+			'    '
+		);
+		assert.strictEqual(
+			getIndentString(path.join(rootDir, 'tabs', 'index.ts')),
+			'\t'
 		);
 	});
 

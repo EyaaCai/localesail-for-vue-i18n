@@ -13,6 +13,7 @@ const {
   getEditor,
   changeObjeValueKey,
   getCustomSetting,
+  getFormatOptions,
   getValueFromDotString,
   getVueScriptRangeAtLine,
   showMessage,
@@ -39,6 +40,7 @@ const {
   getVueTemplateInterpolationArgs,
   hasVueTemplateInterpolation,
   resolveTemplateInterpolationArg,
+  unescapeStringLiteral,
 } = require('../utils/interpolation');
 const flatten = require('flat');
 const fs = require('fs');
@@ -46,16 +48,6 @@ const fs = require('fs');
 const cnRegexp = /[\u4e00-\u9fa5]/;
 const vueTemplateInterpolationRegexp = /\{\{\s*([^]*?)\s*\}\}/g;
 const saveRetryDelays = [100, 250, 500];
-
-const getFormatOptions = (uri) => {
-  const editorConfig = workspace.getConfiguration('editor', uri);
-  const tabSize = editorConfig.get('tabSize', 2);
-
-  return {
-    tabSize: typeof tabSize === 'number' ? tabSize : 2,
-    insertSpaces: editorConfig.get('insertSpaces', true) !== false,
-  };
-};
 
 const formatDocument = async (
   document,
@@ -169,11 +161,11 @@ const replaceVueTemplateLiteralSegment = (
   localeObj = {},
   tFunc,
 ) => {
-  const text = segment.trim();
-  if (!cnRegexp.test(text)) return segment;
-  const result = localeObj[text];
+  const rawText = segment.trim();
+  if (!cnRegexp.test(rawText)) return segment;
+  const result = localeObj[unescapeStringLiteral(rawText)];
   if (!result) return segment;
-  return segment.replace(text, `{{${buildI18nCall(tFunc, result)}}}`);
+  return segment.replace(rawText, `{{${buildI18nCall(tFunc, result)}}}`);
 };
 
 const resoloveLine = ({
@@ -210,7 +202,7 @@ const resoloveLine = ({
           ? ` ${attrPart}`
           : ` :${attrPart}`;
       const mainStr = temp.split('=')[1].replace(resoloveMainReg, '');
-      const result = localeObj[mainStr];
+      const result = localeObj[unescapeStringLiteral(mainStr)];
       if (result) {
         //$t("xx")   template下 属性替换
         return `${prefix}="${tFunc}('${result}')"`;
@@ -220,9 +212,10 @@ const resoloveLine = ({
         return replaceVueTemplateLiteralTexts(str, localeObj, tFunc);
       }
 
-      const resultStr = getI18nText(str, resoloveReg, {
+      const rawStr = getI18nText(str, resoloveReg, {
         vueTemplate: reg === angleBracketSpaceRegexp,
       });
+      const resultStr = unescapeStringLiteral(rawStr);
       const result = localeObj[resultStr];
       if (result) {
         //{{$t("xx")}}   template下 html替换
@@ -470,4 +463,5 @@ module.exports._private = {
   saveDocument,
   getExistingTranslateFunc,
   getTranslateFunc,
+  resoloveLine,
 };

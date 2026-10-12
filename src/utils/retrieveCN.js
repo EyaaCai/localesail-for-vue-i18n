@@ -19,6 +19,7 @@ const {
   getVueTemplateLiteralTexts,
   hasTemplateInterpolation,
   hasVueTemplateInterpolation,
+  unescapeStringLiteral,
 } = require('./interpolation');
 
 const cnRegexp = /[\u4e00-\u9fa5]/;
@@ -48,7 +49,7 @@ const getLineCnWord = ({ lineText, reg, resoloveReg, initWordArr = [] }) => {
         }
 
         if (reg === angleBracketSpaceRegexp && hasVueTemplateInterpolation(v)) {
-          result.push(...getVueTemplateLiteralTexts(v));
+          result.push(...getVueTemplateLiteralTexts(v).map(unescapeStringLiteral));
           return result;
         }
 
@@ -58,9 +59,10 @@ const getLineCnWord = ({ lineText, reg, resoloveReg, initWordArr = [] }) => {
             : getI18nText(v, resoloveReg, {
                 vueTemplate: reg === angleBracketSpaceRegexp,
               });
+        const finalText = unescapeStringLiteral(i18nText);
 
-        if (cnRegexp.test(i18nText)) {
-          result.push(i18nText);
+        if (cnRegexp.test(finalText)) {
+          result.push(finalText);
         }
 
         if (hasTemplateInterpolation(v)) {

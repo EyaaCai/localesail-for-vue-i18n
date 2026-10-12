@@ -18,6 +18,19 @@ const {
 	Position,
 	Range,
 } = require("../utils/vs");
+const { unescapeStringLiteral } = require("../utils/interpolation");
+
+const mergeExtractedEntries = (existing, entries) => {
+	Object.keys(entries).forEach(v => {
+		Object.keys(existing).forEach(p => {
+			if (unescapeStringLiteral(existing[p]) === entries[v]) {
+				delete existing[p];
+			}
+		});
+		existing[v] = entries[v];
+	});
+	return existing;
+};
 
 const tipBeforeWriteJson = (currentEditor, localesPath) => {
 	const { notAlertBeforeUpdateI18n, hashLength } = getCustomSetting(
@@ -71,20 +84,11 @@ const writeJson = (currentEditor, localesPath, keyOptions) => {
 		});
 
 		if (Object.keys(linesObj).length !== 0) {
-			//已存在 => 智能替换（1.相同val时，新的key,val替换原来的key,val。2.不同val时，保存新增key,val和原有的key,val,）
+			//已存在 => 智能替换（1.相同val时(含提取转义还原后相同)，新的key,val替换原来的key,val。2.不同val时，保存新增key,val和原有的key,val,）
 			if (!temp || Object.keys(temp).length === 0) {
 				temp = linesObj;
 			} else {
-				Object.keys(linesObj).forEach(v => {
-					Object.keys(temp).forEach(p => {
-						if (temp[p] === linesObj[v]) {
-							delete temp[p];
-							temp[v] = linesObj[v];
-						} else {
-							temp[v] = linesObj[v];
-						}
-					});
-				});
+				temp = mergeExtractedEntries(temp, linesObj);
 			}
 
 			if (useCompactPathMode) {
@@ -136,3 +140,5 @@ module.exports = ({ editor, context }) => {
 		tipBeforeWriteJson(currentEditor, localesPath);
 	}
 };
+
+module.exports._private = { mergeExtractedEntries };

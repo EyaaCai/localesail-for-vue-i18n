@@ -497,6 +497,104 @@ const getLocaleValueByKey = (localeObj = {}, key = '') => {
   };
 };
 
+const INDENTATION_SAMPLE_MAX_LENGTH = 4096;
+const INDENTATION_SAMPLE_MAX_LEVELS = 8;
+
+const detectIndentationFromContent = (content = '') => {
+  let spaces = null;
+  let hasTabIndent = false;
+  String(content)
+    .split(/\r?\n/)
+    .forEach((line) => {
+      const match = line.match(/^([ \t]+)(?=\S)/);
+      if (!match) return;
+      if (match[1].includes('\t')) {
+        hasTabIndent = true;
+        return;
+      }
+      const size = match[1].length;
+      spaces = spaces === null ? size : Math.min(spaces, size);
+    });
+  if (spaces !== null) return { tabSize: spaces, insertSpaces: true };
+  if (hasTabIndent) return { tabSize: 2, insertSpaces: false };
+  return null;
+};
+
+const findNeighborIndentation = (startDir, excludedFilePath, extension) => {
+  let dir = startDir;
+  for (let level = 0; level < INDENTATION_SAMPLE_MAX_LEVELS; level++) {
+    let entries;
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch (e) {
+      return null;
+    }
+    const sample = entries.find(
+      (entry) =>
+        entry.isFile() &&
+        entry.name.endsWith(`.${extension}`) &&
+        path.resolve(dir, entry.name) !== path.resolve(excludedFilePath),
+    );
+    if (sample) {
+      try {
+        const detected = detectIndentationFromContent(
+          fs
+            .readFileSync(path.resolve(dir, sample.name), 'utf8')
+            .slice(0, INDENTATION_SAMPLE_MAX_LENGTH),
+        );
+        if (detected) return detected;
+      } catch (e) {
+        // 样本读取失败时继续向上查找
+      }
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return null;
+};
+
+const pickConfiguredValue = (inspectOptions = {}) =>
+  [
+    inspectOptions.workspaceFolderValue,
+    inspectOptions.workspaceValue,
+    inspectOptions.globalValue,
+  ].find((value) => value !== undefined);
+
+// 宿主项目通常通过已有文件、prettier/editorconfig 表达缩进风格，editor.tabSize 的默认值并不可靠
+const getFormatOptions = (uri) => {
+  const filePath = uri && uri.fsPath;
+  const extension = filePath ? path.extname(filePath).slice(1) : '';
+  if (filePath && extension) {
+    const detected = findNeighborIndentation(
+      path.dirname(filePath),
+      filePath,
+      extension,
+    );
+    if (detected) return detected;
+  }
+
+  const editorConfig = workspace.getConfiguration('editor', uri);
+  const configuredTabSize = pickConfiguredValue(
+    editorConfig.inspect('tabSize') || {},
+  );
+  const configuredInsertSpaces = pickConfiguredValue(
+    editorConfig.inspect('insertSpaces') || {},
+  );
+  const tabSize =
+    typeof configuredTabSize === 'number'
+      ? configuredTabSize
+      : editorConfig.get('tabSize', 2);
+
+  return {
+    tabSize: typeof tabSize === 'number' ? tabSize : 2,
+    insertSpaces:
+      typeof configuredInsertSpaces === 'boolean'
+        ? configuredInsertSpaces
+        : editorConfig.get('insertSpaces', true) !== false,
+  };
+};
+
 module.exports = {
   openFileByPath,
   getCellRange,
@@ -514,5 +612,6 @@ module.exports = {
   getLocaleValueByKey,
   getCustomSetting,
   isMixinFile,
+  getFormatOptions,
   ...ast,
 };

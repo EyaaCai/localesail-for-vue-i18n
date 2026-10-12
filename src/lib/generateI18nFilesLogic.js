@@ -1,7 +1,13 @@
 const fs = require('fs');
 const path = require('path');
 const mkdirp = require('mkdirp');
-const { getCustomSetting, getLocales, showMessage, getEditor } = require('../utils/index');
+const {
+  getCustomSetting,
+  getLocales,
+  getFormatOptions,
+  showMessage,
+  getEditor,
+} = require('../utils/index');
 const {
   executeCommand,
   file,
@@ -30,8 +36,13 @@ const isJsIdentifier = (value = '') =>
 const toJsObjectKey = (value = '') =>
   isJsIdentifier(value) ? String(value) : toJsSingleQuotedString(value);
 
-const formatLocaleModuleEntry = (key, value) =>
-  `  ${toJsObjectKey(key)}: ${toJsSingleQuotedString(value)},`;
+const formatLocaleModuleEntry = (key, value, indent = '  ') =>
+  `${indent}${toJsObjectKey(key)}: ${toJsSingleQuotedString(value)},`;
+
+const getIndentString = (targetFilePath) => {
+  const { tabSize, insertSpaces } = getFormatOptions(file(targetFilePath));
+  return insertSpaces ? ' '.repeat(tabSize) : '\t';
+};
 
 const insertLocaleModuleEntries = (
   oldContent,
@@ -59,16 +70,6 @@ const insertLocaleModuleEntries = (
     nextBody +
     oldContent.substring(exportDefaultEndIndex)
   );
-};
-
-const getFormatOptions = (uri) => {
-  const editorConfig = workspace.getConfiguration('editor', uri);
-  const tabSize = editorConfig.get('tabSize', 2);
-
-  return {
-    tabSize: typeof tabSize === 'number' ? tabSize : 2,
-    insertSpaces: editorConfig.get('insertSpaces', true) !== false,
-  };
 };
 
 const getFormatEdits = async (
@@ -258,17 +259,19 @@ module.exports = ({ context, uri }) => {
       if (typeof _data[key] !== 'object' || Array.isArray(_data[key])) return;
 
       const obj = _data[key];
-      const items = Object.keys(obj).map(k => {
-        const finalKey = useHashKeyOnly ? k : `${key}.${k}`;
-        return formatLocaleModuleEntry(finalKey, obj[k] || '');
-      });
-      if (items.length === 0) return;
 
       const parts = key.split('.');
       const fileName = parts.pop();
       const relativeDirPath = parts.join(path.sep);
       const targetDir = path.join(outputBaseDir, relativeDirPath);
       const targetFilePath = path.join(targetDir, `${fileName}.${targetExt}`);
+      const indent = getIndentString(targetFilePath);
+
+      const items = Object.keys(obj).map(k => {
+        const finalKey = useHashKeyOnly ? k : `${key}.${k}`;
+        return formatLocaleModuleEntry(finalKey, obj[k] || '', indent);
+      });
+      if (items.length === 0) return;
 
       if (fs.existsSync(targetFilePath)) {
         let oldContent = '';
@@ -321,7 +324,7 @@ module.exports = ({ context, uri }) => {
             if (Object.prototype.hasOwnProperty.call(mergedObj, finalKey)) {
               hasExistingValueChange = true;
             } else {
-              addedItems.push(formatLocaleModuleEntry(finalKey, newVal));
+              addedItems.push(formatLocaleModuleEntry(finalKey, newVal, indent));
             }
             mergedObj[finalKey] = newVal;
             hasChange = true;
@@ -340,7 +343,7 @@ module.exports = ({ context, uri }) => {
                 )
               : (() => {
                   const mergedItems = Object.keys(mergedObj).map(fk =>
-                    formatLocaleModuleEntry(fk, mergedObj[fk]),
+                    formatLocaleModuleEntry(fk, mergedObj[fk], indent),
                   );
                   const beforeBrace = oldContent.substring(0, braceIndex + 1);
                   const afterBrace = oldContent.substring(exportDefaultEndIndex);
@@ -363,7 +366,7 @@ module.exports = ({ context, uri }) => {
       } else {
         const itemsToInsert = Object.keys(_data[key]).map(k => {
           const finalKey = useHashKeyOnly ? k : `${key}.${k}`;
-          return formatLocaleModuleEntry(finalKey, _data[key][k] || '');
+          return formatLocaleModuleEntry(finalKey, _data[key][k] || '', indent);
         });
         if (itemsToInsert.length === 0) return;
         mkdirp.sync(targetDir);
@@ -411,6 +414,7 @@ module.exports._private = {
   formatLocaleModuleEntry,
   formatFiles,
   getFormatEdits,
+  getIndentString,
   saveDocument,
   isJsIdentifier,
   insertLocaleModuleEntries,
