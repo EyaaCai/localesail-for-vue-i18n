@@ -43,6 +43,11 @@ const {
   resolveTemplateInterpolationArg,
   unescapeStringLiteral,
 } = require('../utils/interpolation');
+const {
+  escapeRegExpSource,
+  getScopedTranslateScopes,
+  getUseI18nTranslateCallers,
+} = require('../utils/inlineTranslationResolver');
 const flatten = require('flat');
 const fs = require('fs');
 
@@ -93,19 +98,49 @@ const saveDocument = async (
 };
 
 const getExistingTranslateFunc = (text = '') => {
-  const useI18nAliasMatch = text.match(
-    /\bconst\s*\{\s*t\s*:\s*([A-Za-z_$][\w$]*)\s*\}\s*=\s*useI18n\s*\(/,
-  );
-  if (useI18nAliasMatch) return useI18nAliasMatch[1];
-
-  if (/\bconst\s*\{\s*t\s*\}\s*=\s*useI18n\s*\(/.test(text)) {
-    return 't';
-  }
   if (/\bthis\.\$t\s*\(/.test(text)) return 'this.$t';
   if (/\$t\s*\(/.test(text)) return '$t';
   if (/\bi18n\.t\s*\(/.test(text)) return 'i18n.t';
   if (/\bt\s*\(/.test(text)) return 't';
   return null;
+};
+
+const normalizeScopePath = (value = '') =>
+  String(value)
+    .trim()
+    .replace(/[\\/]+/g, '.')
+    .replace(/\.{2,}/g, '.')
+    .replace(/^\.+|\.+$/g, '');
+
+const getDeclaredCallName = (text, name) => {
+  const escapedName = escapeRegExpSource(name);
+  if (new RegExp(`${escapedName}\\s*\\(`).test(text)) return name;
+  if (new RegExp(`${escapedName}\\.t\\s*\\(`).test(text)) return `${name}.t`;
+  return name;
+};
+
+// 声明型复用：只有能证明绑定服务于当前文件 scope（或 useI18n 解构）时才采用
+const getDeclaredTranslateFunc = ({
+  text = '',
+  prefix = '',
+  scopedTranslateFunctionNames = [],
+} = {}) => {
+  const useI18nCallers = getUseI18nTranslateCallers(text);
+  if (useI18nCallers.length > 0) return useI18nCallers[0];
+
+  const normalizedPrefix = normalizeScopePath(prefix);
+  if (!normalizedPrefix) return null;
+
+  const scopedScopes = getScopedTranslateScopes(
+    text,
+    scopedTranslateFunctionNames,
+  );
+  const matchedName = Object.keys(scopedScopes).find(
+    (name) =>
+      !name.endsWith('.t') &&
+      normalizeScopePath(scopedScopes[name]) === normalizedPrefix,
+  );
+  return matchedName ? getDeclaredCallName(text, matchedName) : null;
 };
 
 const getTranslateFunc = ({
@@ -116,9 +151,14 @@ const getTranslateFunc = ({
   isTS,
   isMixinFile,
   existingTranslateFunc,
+  declaredTranslateFunc,
 }) => {
-  if (isTemplate) return isScriptSetup ? 't' : '$t';
+  if (isTemplate) {
+    if (isScriptSetup && declaredTranslateFunc) return declaredTranslateFunc;
+    return isScriptSetup ? 't' : '$t';
+  }
   if (isSetup) {
+    if (declaredTranslateFunc) return declaredTranslateFunc;
     if (
       existingTranslateFunc &&
       existingTranslateFunc !== '$t' &&
@@ -128,6 +168,7 @@ const getTranslateFunc = ({
     }
     return 't';
   }
+  if (declaredTranslateFunc) return declaredTranslateFunc;
   if (existingTranslateFunc) return existingTranslateFunc;
   if (isTS) return 't';
   if (isScript && isMixinFile) return 'this.$t';
@@ -182,6 +223,7 @@ const resoloveLine = ({
   isTS,
   isMixinFile,
   existingTranslateFunc,
+  declaredTranslateFunc,
 }) => {
   let text = lineText.replace(reg, (str) => {
     let temp = str;
@@ -193,6 +235,7 @@ const resoloveLine = ({
       isTS,
       isMixinFile,
       existingTranslateFunc,
+      declaredTranslateFunc,
     });
     if (reg === propertyRegexp) {
       const attrPart = temp.split('=')[0].replace(resoloveReg, '');
@@ -296,6 +339,20 @@ const replaceWithI18nKeys = ({ editor, context, headless = false }) => {
   const range = getRange(currentEditor);
   const prefix = getPrefix(currentEditor);
   const documentText = currentEditor.document.getText();
+  const {
+    useCompactPathMode,
+    useHashKeyOnly,
+    scopedTranslateFunctionNames,
+  } = getCustomSetting(currentEditor.document.uri.fsPath, [
+    'useCompactPathMode',
+    'useHashKeyOnly',
+    'scopedTranslateFunctionNames',
+  ]);
+  const declaredTranslateFunc = getDeclaredTranslateFunc({
+    text: documentText,
+    prefix,
+    scopedTranslateFunctionNames,
+  });
   const existingTranslateFunc = getExistingTranslateFunc(documentText);
   const isMixinFileContext = isMixinFile({
     fsPath: currentEditor.document.uri.fsPath,
@@ -311,11 +368,6 @@ const replaceWithI18nKeys = ({ editor, context, headless = false }) => {
     failHeadless('locale-source-not-found');
     return headlessResult;
   }
-
-  const { useCompactPathMode, useHashKeyOnly } = getCustomSetting(
-    currentEditor.document.uri.fsPath,
-    ['useCompactPathMode', 'useHashKeyOnly'],
-  );
 
   fs.readFile(localesPath, (err, data) => {
     if (!err) {
@@ -425,6 +477,7 @@ const replaceWithI18nKeys = ({ editor, context, headless = false }) => {
               isTS,
               isMixinFile: isMixinFileContext,
               existingTranslateFunc,
+              declaredTranslateFunc,
             });
           }
 
@@ -443,6 +496,7 @@ const replaceWithI18nKeys = ({ editor, context, headless = false }) => {
               isTS,
               isMixinFile: isMixinFileContext,
               existingTranslateFunc,
+              declaredTranslateFunc,
             });
           }
 
@@ -461,6 +515,7 @@ const replaceWithI18nKeys = ({ editor, context, headless = false }) => {
               isTS,
               isMixinFile: isMixinFileContext,
               existingTranslateFunc,
+              declaredTranslateFunc,
             });
           }
           inVueTemplateInterpolation =
@@ -535,6 +590,7 @@ module.exports._private = {
   getFormatOptions,
   saveDocument,
   getExistingTranslateFunc,
+  getDeclaredTranslateFunc,
   getTranslateFunc,
   resoloveLine,
 };

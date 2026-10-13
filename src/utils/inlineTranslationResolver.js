@@ -236,6 +236,7 @@ const getUseI18nTranslateCallers = (text = '') => {
 };
 
 module.exports = {
+  escapeRegExpSource,
   extractExportDefaultObject,
   getSplitFileCandidates,
   normalizeSplitLocalePathAliases,

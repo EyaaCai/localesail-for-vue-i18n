@@ -34,6 +34,7 @@ const {
 	getFormatOptions,
 	saveDocument: saveReplacedDocument,
 	getExistingTranslateFunc,
+	getDeclaredTranslateFunc,
 	getTranslateFunc,
 	resoloveLine,
 } = require('../../src/lib/replaceWithI18nKeys')._private;
@@ -460,7 +461,9 @@ suite('Extension Test Suite', () => {
 			'$t'
 		);
 		assert.strictEqual(
-			getExistingTranslateFunc("const { t: tt } = useI18n(); tt('common.title')"),
+			getDeclaredTranslateFunc({
+				text: "const { t: tt } = useI18n(); tt('common.title')",
+			}),
 			'tt'
 		);
 		assert.strictEqual(
@@ -508,6 +511,138 @@ suite('Extension Test Suite', () => {
 				isScript: false,
 				isMixinFile: false,
 				existingTranslateFunc: 'this.$t',
+			}),
+			't'
+		);
+	});
+
+	test('Replace I18n reuses declared scoped translate bindings', () => {
+		const prefix = 'views.customer.index';
+		const scopedTranslateFunctionNames = ['useLocale'];
+		assert.strictEqual(
+			getDeclaredTranslateFunc({
+				text: "const $t = useLocale('views.customer.index'); $t('title')",
+				prefix,
+				scopedTranslateFunctionNames,
+			}),
+			'$t'
+		);
+		assert.strictEqual(
+			getDeclaredTranslateFunc({
+				text: "const originT = useLocale('views.customer.index');",
+				prefix,
+				scopedTranslateFunctionNames,
+			}),
+			'originT'
+		);
+		assert.strictEqual(
+			getDeclaredTranslateFunc({
+				text: "const globalT = useLocale('globalVar');",
+				prefix,
+				scopedTranslateFunctionNames,
+			}),
+			null
+		);
+		assert.strictEqual(
+			getDeclaredTranslateFunc({
+				text: "const { t } = useLocale('views/customer/index');",
+				prefix,
+				scopedTranslateFunctionNames,
+			}),
+			't'
+		);
+		assert.strictEqual(
+			getDeclaredTranslateFunc({
+				text: "const i18n = useLocale('views.customer.index'); i18n.t('title')",
+				prefix,
+				scopedTranslateFunctionNames,
+			}),
+			'i18n.t'
+		);
+		assert.strictEqual(
+			getDeclaredTranslateFunc({
+				text: "const tt = useScopedI18n('views.customer.index'); tt('title')",
+				prefix,
+				scopedTranslateFunctionNames: ['useScopedI18n'],
+			}),
+			'tt'
+		);
+		assert.strictEqual(
+			getDeclaredTranslateFunc({
+				text: "const $t = useLocale('views.customer.index');",
+				prefix,
+				scopedTranslateFunctionNames: [],
+			}),
+			null
+		);
+		assert.strictEqual(
+			getDeclaredTranslateFunc({
+				text: "const $t = useLocale('views.customer.index');",
+				prefix: '',
+				scopedTranslateFunctionNames,
+			}),
+			null
+		);
+	});
+
+	test('Replace I18n prefers declared translate bindings in script setup', () => {
+		assert.strictEqual(
+			getTranslateFunc({
+				isTemplate: true,
+				isScriptSetup: true,
+				isSetup: false,
+				isTS: false,
+				isScript: false,
+				isMixinFile: false,
+				existingTranslateFunc: '$t',
+				declaredTranslateFunc: '$t',
+			}),
+			'$t'
+		);
+		assert.strictEqual(
+			getTranslateFunc({
+				isTemplate: true,
+				isScriptSetup: true,
+				isSetup: false,
+				isTS: false,
+				isScript: false,
+				isMixinFile: false,
+				existingTranslateFunc: null,
+				declaredTranslateFunc: 'originT',
+			}),
+			'originT'
+		);
+		assert.strictEqual(
+			getTranslateFunc({
+				isTemplate: true,
+				isScriptSetup: false,
+				isSetup: false,
+				isTS: false,
+				isScript: false,
+				isMixinFile: false,
+				existingTranslateFunc: 'this.$t',
+				declaredTranslateFunc: 'tt',
+			}),
+			'$t'
+		);
+		assert.strictEqual(
+			getTranslateFunc({
+				isSetup: true,
+				isTS: false,
+				isScript: true,
+				isMixinFile: false,
+				existingTranslateFunc: '$t',
+				declaredTranslateFunc: '$t',
+			}),
+			'$t'
+		);
+		assert.strictEqual(
+			getTranslateFunc({
+				isSetup: true,
+				isTS: false,
+				isScript: true,
+				isMixinFile: false,
+				existingTranslateFunc: '$t',
 			}),
 			't'
 		);

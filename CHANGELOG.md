@@ -5,6 +5,7 @@
 - **MCP 服务（AI 集成）**：扩展内置仅监听 `127.0.0.1` 的 MCP 服务（访问令牌鉴权），本机 AI 客户端可通过四个工具调用 LocaleSail 能力：`extract_chinese`（扫描中文清单，只读）、`write_locale`（生成 key 写入语言包）、`apply_i18n_keys`（替换为 i18n key 调用）、`split_locale_modules`（拆分语言包模块，支持 `dryRun` 预览）；新增 `localeSail.mcp.enabled` / `localeSail.mcp.port` 配置项与 `LocaleSail: Copy MCP Configuration` / `LocaleSail: Show MCP Status` 命令。
 - **写入方式统一切换到编辑器 API**：`Replace Copy with i18n Keys`、`Extract Chinese Copy`、`Build Split Locale Modules` 的写回均改为通过编辑器 API（WorkspaceEdit）应用，交互行为保持不变；解决了IDE"文件已被外部修改"的保存冲突提示，也支持无可见编辑器的自动化调用场景。
 - **key 前缀与错误处理增强**：操作的文件不属于当前工作区时（例如 AI 通过绝对路径处理其他项目），改为向上查找 `package.json` 定位项目根，保证紧凑路径 key 前缀完整；无法定位项目根时 MCP 工具明确报错（`no-project-root`）而不是静默降级为文件名前缀；同时修复了非项目文件向上查找配置时的无限递归问题。
+- **替换翻译函数跟随文件内声明**：`Replace Copy with i18n Keys` 与 MCP `apply_i18n_keys` 现在会解析文件里已声明的翻译函数并优先复用：`useI18n` 解构（含 `const { t: tt }` 别名）与 `localeSail.scopedTranslateFunctionNames` 配置的局部翻译函数（默认 `useLocale`，声明的 scope 与当前文件 key 前缀一致时启用），覆盖 `$t`、自定义名（如 `originT`）与 `x.t` 调用形态；Vue 3 `<script setup>` 的模板与脚本不再在有可用声明时产出未定义的 `t(...)`。无现成声明与调用时保持原有默认逻辑。
 
 ## 0.4.5
 

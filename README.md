@@ -119,10 +119,11 @@ t('key')
 this.$t('key')
 ```
 
-如果当前文件里已经存在翻译函数调用，替换时会优先复用已有风格，避免 Vue 3 项目里强行替换成不存在的 `t(...)`：
+如果文件里已经声明了翻译函数，替换时会优先复用已有声明，避免 Vue 3 项目里强行替换成不存在的 `t(...)`。`useI18n` 解构（含别名）与 `localeSail.scopedTranslateFunctionNames` 识别的局部翻译函数（默认 `useLocale`，声明处 scope 与当前文件的 key 前缀一致时）都参与复用：
 
 ```vue
 <script setup>
+const $t = useLocale('views.customer.index')
 const title = $t('common.title')
 </script>
 ```
@@ -438,7 +439,7 @@ export default {
 | --- | --- |
 | `extract_chinese` | 扫描指定文件或目录中的中文文案，返回中文清单（只读） |
 | `write_locale` | 扫描源文件中文，生成 key 并合并写入语言包 JSON，返回实际写入的 key→文案映射（`dryRun` 可预览） |
-| `apply_i18n_keys` | 将指定文件中已存在于语言包的文案替换为 `$t()` 调用并保存 |
+| `apply_i18n_keys` | 将指定文件中已存在于语言包的文案替换为 i18n 调用（翻译函数跟随文件内已有声明/调用）并保存 |
 | `split_locale_modules` | 将语言包 JSON 拆分为 JS/TS 模块（`dryRun` 可预览；执行后清空源 JSON） |
 
 服务默认开启，可在设置中通过 `localeSail.mcp.enabled` 关闭；`localeSail.mcp.port` 可修改端口（默认 `39167`）。

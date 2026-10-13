@@ -128,7 +128,7 @@ const TOOL_DEFINITIONS = [
   {
     name: 'apply_i18n_keys',
     description:
-      '把指定文件中已存在于语言包（locale JSON）的中文文案替换为 i18n key 调用（$t/this.$t），并通过编辑器 API 格式化保存。需先通过 LocaleSail 的提取流程把文案写入语言包，否则不会有替换发生。',
+      '把指定文件中已存在于语言包（locale JSON）的中文文案替换为 i18n key 调用，并通过编辑器 API 格式化保存。翻译函数跟随文件内已有声明与调用（useI18n 解构、useLocale 等局部翻译函数、$t/this.$t），无现成写法时按 Vue 2/Vue 3 场景选择 $t 或 t。需先通过 LocaleSail 的提取流程把文案写入语言包，否则不会有替换发生。',
     inputSchema: {
       type: 'object',
       properties: {
