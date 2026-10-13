@@ -12,7 +12,7 @@
     "i18n",
     "developer-tool"
   ],
-  "version": "0.4.5",
+  "version": "0.5.0",
   "engines": {
     "vscode": "^1.67.0"
   },
@@ -66,6 +66,14 @@
       {
         "command": "localeSail.generateI18nFiles",
         "title": "LocaleSail: Build Split Locale Modules"
+      },
+      {
+        "command": "localeSail.copyMcpConfig",
+        "title": "LocaleSail: Copy MCP Configuration"
+      },
+      {
+        "command": "localeSail.showMcpStatus",
+        "title": "LocaleSail: Show MCP Status"
       }
     ],
     "configuration": {
@@ -186,6 +194,16 @@
           ],
           "default": "auto",
           "description": "生成拆分 i18n 文件时使用的文件后缀，默认 `auto`。"
+        },
+        "localeSail.mcp.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "启用内置 MCP 服务，允许本机 AI 客户端（如 Qoder、Claude Code）调用 LocaleSail 的提取与替换能力。服务仅监听 127.0.0.1，并使用令牌鉴权；关闭后立即停止监听。"
+        },
+        "localeSail.mcp.port": {
+          "type": "number",
+          "default": 39167,
+          "description": "MCP 服务监听端口，仅绑定 127.0.0.1；修改后服务会自动重启。"
         }
       }
     },

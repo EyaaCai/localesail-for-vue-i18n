@@ -10,6 +10,7 @@ const {
   getRange,
   getLocales,
   getPrefix,
+  getProjectRoot,
   getEditor,
   changeObjeValueKey,
   getCustomSetting,
@@ -249,9 +250,40 @@ const resoloveLine = ({
   };
 };
 
-const replaceWithI18nKeys = ({ editor, context }) => {
+const replaceWithI18nKeys = ({ editor, context, headless = false }) => {
+  let finishHeadless = null;
+  const headlessResult = headless
+    ? new Promise((resolve) => {
+        finishHeadless = resolve;
+      })
+    : null;
+  const failHeadless = (error) => {
+    if (finishHeadless) finishHeadless({ ok: false, error });
+  };
+
   let currentEditor = getEditor(editor);
-  if (!currentEditor) return;
+  if (!currentEditor) {
+    failHeadless('unsupported-document');
+    return headlessResult;
+  }
+
+  if (headless) {
+    const { useCompactPathMode } = getCustomSetting(
+      currentEditor.document.uri.fsPath,
+      ['useCompactPathMode'],
+    );
+    if (
+      useCompactPathMode &&
+      !getProjectRoot(
+        currentEditor.document.uri.fsPath,
+        currentEditor.document.uri,
+      )
+    ) {
+      // 不静默降级：前缀算不出完整路径时明确报错，避免查询不到完整 key
+      failHeadless('no-project-root');
+      return headlessResult;
+    }
+  }
 
   const { languageId } = currentEditor.document;
   const isVue = languageId === 'vue';
@@ -272,10 +304,13 @@ const replaceWithI18nKeys = ({ editor, context }) => {
   const { localesPath, exist } = getLocales({
     fsPath: currentEditor.document.uri.fsPath,
     defaultLocalesPath,
-    showError: true,
+    showError: !headless,
     showInfo: false,
   });
-  if (!exist) return;
+  if (!exist) {
+    failHeadless('locale-source-not-found');
+    return headlessResult;
+  }
 
   const { useCompactPathMode, useHashKeyOnly } = getCustomSetting(
     currentEditor.document.uri.fsPath,
@@ -293,7 +328,10 @@ const replaceWithI18nKeys = ({ editor, context }) => {
       );
       // flatten(JSON.parse(data.toString()))[prefix] || {}
       if (!localeObj || Object.keys(localeObj).length === 0) {
-        msg.error(localesPath + ` not contains property '${prefix}'`);
+        if (!headless) {
+          msg.error(localesPath + ` not contains property '${prefix}'`);
+        }
+        failHeadless('locale-entries-not-found');
         return;
       }
       const lines = [];
@@ -312,11 +350,17 @@ const replaceWithI18nKeys = ({ editor, context }) => {
           typeof scriptRange.end !== 'number',
       );
       if (hasIncompleteTemplate) {
-        msg.error('当前vue文件template标签不完整');
+        if (!headless) {
+          msg.error('当前vue文件template标签不完整');
+        }
+        failHeadless('incomplete-template');
         return;
       }
       if (hasIncompleteScript) {
-        msg.error('当前vue文件script标签不完整');
+        if (!headless) {
+          msg.error('当前vue文件script标签不完整');
+        }
+        failHeadless('incomplete-script');
         return;
       }
       for (let i = 0; i < lineCount; i++) {
@@ -427,21 +471,43 @@ const replaceWithI18nKeys = ({ editor, context }) => {
         lines.push(lineData.lineText);
       }
       const editText = lines.join('\n');
-      currentEditor
-        .edit((editBuilder) => {
-          const end = new Position(lineCount + 1, 0);
-          editBuilder.replace(new Range(new Position(0, 0), end), editText);
-        })
-        .then(async (success) => {
-          if (success) {
-            await formatDocument(currentEditor.document);
-            const saved = await saveDocument(currentEditor.document);
-            if (!saved) {
+      const document = currentEditor.document;
+      const originalLines = documentText.split(/\r?\n/);
+      let changedLines = 0;
+      lines.forEach((lineText, index) => {
+        if (lineText !== originalLines[index]) changedLines += 1;
+      });
+      const edit = new WorkspaceEdit();
+      const lastLine = document.lineAt(Math.max(document.lineCount - 1, 0));
+      edit.replace(
+        document.uri,
+        new Range(new Position(0, 0), lastLine.range.end),
+        editText,
+      );
+      workspace.applyEdit(edit).then(async (success) => {
+        if (success) {
+          await formatDocument(document);
+          const saved = await saveDocument(document);
+          if (!saved) {
+            if (!headless) {
               msg.error(
                 `${operation.replaceWithI18nKeys.title} failed to save the document.`,
               );
-              return;
             }
+            failHeadless('save-failed');
+            return;
+          }
+          if (finishHeadless) {
+            finishHeadless({
+              ok: true,
+              prefix,
+              localesPath,
+              replaced: changedLines > 0,
+              changedLines,
+              documentPath: document.uri.fsPath,
+            });
+          }
+          if (!headless) {
             showMessage({
               message: `${operation.replaceWithI18nKeys.title} success with \'${prefix}\' in ${localesPath}!`,
               needOpen: false,
@@ -451,9 +517,16 @@ const replaceWithI18nKeys = ({ editor, context }) => {
               },
             });
           }
-        });
+        } else {
+          failHeadless('apply-edit-failed');
+        }
+      });
+    } else {
+      failHeadless('locale-source-read-failed');
     }
   });
+
+  return headlessResult;
 };
 
 module.exports = replaceWithI18nKeys;

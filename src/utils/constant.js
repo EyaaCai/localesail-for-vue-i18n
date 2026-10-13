@@ -42,6 +42,14 @@ const constants = {
     hoverI18n: { cmd: 'localeSail.hoverI18n', title: 'Hover I18n' },
     openI18nFile: { cmd: 'localeSail.openI18nFile', title: 'Open Locale Source' },
     generateI18nFiles: { cmd: 'localeSail.generateI18nFiles', title: 'Build Split Locale Modules' },
+    copyMcpConfig: {
+      cmd: 'localeSail.copyMcpConfig',
+      title: 'Copy MCP Configuration',
+    },
+    showMcpStatus: {
+      cmd: 'localeSail.showMcpStatus',
+      title: 'Show MCP Status',
+    },
   },
   plugin: {
     name: 'LocaleSail for Vue i18n',
@@ -68,6 +76,8 @@ const constants = {
     useHashKeyOnly: false,
     generateI18nFilesOutputDir: 'src/i18n/lang/zh-cn',
     generateI18nFilesExt: 'auto',
+    'mcp.enabled': true,
+    'mcp.port': 39167,
   },
 
   pkgFileName: 'package.json',

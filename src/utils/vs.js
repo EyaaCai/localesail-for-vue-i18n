@@ -15,6 +15,7 @@ module.exports = {
 	ViewColumn: vscode.ViewColumn,
 	workspace: vscode.workspace,
 	window: vscode.window,
+	env: vscode.env,
 	languages: vscode.languages,
 	OverviewRulerLane: vscode.OverviewRulerLane,
 	registerHoverProvider: vscode.languages.registerHoverProvider,

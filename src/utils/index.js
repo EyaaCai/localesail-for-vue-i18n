@@ -86,6 +86,27 @@ const showMessage = ({
 };
 
 //获取配置项
+const resolveSettingKeys = (customSetting, key) => {
+  if (typeof key === 'string') {
+    return getCustomSettingKey(customSetting, key);
+  }
+  if (Array.isArray(key)) {
+    return key.reduce((p, c) => {
+      p[c] = getCustomSettingKey(customSetting, c);
+      return p;
+    }, {});
+  }
+  if (isObject(key)) {
+    for (const i in key) {
+      if (key.hasOwnProperty(i)) {
+        key[i] = getCustomSettingKey(customSetting, key[i]);
+      }
+    }
+    return key;
+  }
+  return {};
+};
+
 const getCustomSetting = (fsPath, key, forceIgnoreCustomSetting = false) => {
   const dirName = path.dirname(fsPath);
   if (fs.existsSync(path.join(dirName, pkgFileName))) {
@@ -108,28 +129,30 @@ const getCustomSetting = (fsPath, key, forceIgnoreCustomSetting = false) => {
         message: `'${customPath}' is not a right json, custom setting will not work`,
       });
     }
-    if (typeof key === 'string') {
-      const data = getCustomSettingKey(customSetting, key);
-      return getCustomSettingKey(customSetting, key);
-    }
-    if (Array.isArray(key)) {
-      return key.reduce((p, c) => {
-        p[c] = getCustomSettingKey(customSetting, c);
-        return p;
-      }, {});
-    }
-    if (isObject(key)) {
-      for (const i in key) {
-        if (key.hasOwnProperty(i)) {
-          key[i] = getCustomSettingKey(customSetting, key[i]);
-        }
-      }
-      return key;
-    }
-    return {};
-  } else {
-    return getCustomSetting(dirName, key, forceIgnoreCustomSetting);
+    return resolveSettingKeys(customSetting, key);
   }
+  const parentDir = path.dirname(dirName);
+  if (parentDir === dirName) {
+    // 向上到盘根仍未找到 package.json：按空项目配置处理（回落 VS Code 配置）
+    return resolveSettingKeys({}, key);
+  }
+  return getCustomSetting(dirName, key, forceIgnoreCustomSetting);
+};
+
+const findPackageRoot = (fsPath) => {
+  let dir = path.dirname(fsPath);
+  while (true) {
+    if (fs.existsSync(path.join(dir, pkgFileName))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) return null;
+    dir = parent;
+  }
+};
+
+const getProjectRoot = (fsPath, uri) => {
+  const workspaceFolder = uri ? workspace.getWorkspaceFolder(uri) : null;
+  if (workspaceFolder) return workspaceFolder.uri.fsPath;
+  return findPackageRoot(fsPath);
 };
 
 const getPrefix = (currentEditor) => {
@@ -155,9 +178,9 @@ const getPrefix = (currentEditor) => {
   let prefix = '';
 
   if (useCompactPathMode) {
-    const workspaceFolder = workspace.getWorkspaceFolder(uri);
-    if (workspaceFolder) {
-      const rootPath = workspaceFolder.uri.fsPath;
+    // 文件不在当前工作区时（例如 AI 通过绝对路径操作其他项目），向上查找 package.json 确定项目根
+    const rootPath = getProjectRoot(fileFsPath, uri);
+    if (rootPath) {
       const absoluteBasePath = path.isAbsolute(useCompactModeBasePath)
         ? useCompactModeBasePath
         : path.join(rootPath, useCompactModeBasePath);
@@ -436,6 +459,11 @@ const getLocales = ({
     }
     return varifyFile({ fsPath: jsonPath, showInfo, showError });
   } else {
+    const parentDir = path.dirname(dirName);
+    if (parentDir === dirName) {
+      // 向上到盘根仍未找到 package.json：不属于任何项目
+      return { localesPath: '', exist: false };
+    }
     return getLocales({
       fsPath: dirName,
       isGetRootPath,
@@ -597,6 +625,7 @@ const getFormatOptions = (uri) => {
 
 module.exports = {
   openFileByPath,
+  getProjectRoot,
   getCellRange,
   getRange,
   getVueScriptRangeAtLine,

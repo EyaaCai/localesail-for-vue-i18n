@@ -13,6 +13,7 @@ LocaleSail 是一个面向 Vue、JavaScript、TypeScript 项目的 VS Code 国�
 | 预览翻译内容 | 在当前打开文件中自动覆盖查看 i18n key 对应中文文案 |
 | 生成拆分语言包 | 将大型 JSON 拆成目录化的 JS/TS locale 模块 |
 | JSON 辅助处理 | 支持 locale JSON 扁平化与还原 |
+| AI 集成（MCP） | 内置 MCP 服务，供本机 AI 客户端调用提取与替换能力 |
 
 ## 安装
 
@@ -407,6 +408,42 @@ export default {
 - `auto`：自动根据项目判断
 - `js`：生成 JavaScript 文件
 - `ts`：生成 TypeScript 文件
+
+## MCP 服务（AI 集成）
+
+扩展内置一个 MCP（Model Context Protocol）服务，让本机 AI 客户端（Qoder、Claude Code 等）直接调用 LocaleSail 的提取与替换能力。服务仅监听 `127.0.0.1`，不会对外网开放，并使用访问令牌鉴权。
+
+把配置接入 AI 客户端：
+
+1. 执行命令 `LocaleSail: Copy MCP Configuration`，包含访问令牌的配置片段会复制到剪贴板；
+2. 粘贴到 AI 客户端的 MCP 配置中：
+
+```json
+{
+  "mcpServers": {
+    "localesail": {
+      "type": "http",
+      "url": "http://127.0.0.1:39167/mcp",
+      "headers": {
+        "Authorization": "Bearer <token>"
+      }
+    }
+  }
+}
+```
+
+可用的 MCP 工具：
+
+| 工具 | 说明 |
+| --- | --- |
+| `extract_chinese` | 扫描指定文件或目录中的中文文案，返回中文清单（只读） |
+| `write_locale` | 扫描源文件中文，生成 key 并合并写入语言包 JSON，返回实际写入的 key→文案映射（`dryRun` 可预览） |
+| `apply_i18n_keys` | 将指定文件中已存在于语言包的文案替换为 `$t()` 调用并保存 |
+| `split_locale_modules` | 将语言包 JSON 拆分为 JS/TS 模块（`dryRun` 可预览；执行后清空源 JSON） |
+
+服务默认开启，可在设置中通过 `localeSail.mcp.enabled` 关闭；`localeSail.mcp.port` 可修改端口（默认 `39167`）。
+
+排查连接问题：执行 `LocaleSail: Show MCP Status` 查看服务运行状态、端点地址与令牌前缀（弹窗内可一键复制完整配置）。
 
 ## 更多说明
 

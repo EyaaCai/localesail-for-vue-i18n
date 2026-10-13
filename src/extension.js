@@ -11,6 +11,7 @@ const generateI18nFiles = require('./generateI18nFiles');
 const ignoreNextLine = require('./ignoreNextLine');
 const inlineTranslationPreview = require('./lib/inlineTranslationPreview');
 const definitionI18n = require('./definitionI18n');
+const mcp = require('./mcp');
 
 function activate(context) {
 	// register
@@ -50,6 +51,9 @@ function activate(context) {
 
 	// insert ignore next line comment
 	ignoreNextLine(context);
+
+	// mcp server for AI clients
+	mcp(context);
 
 	msg.info(`${plugin.name} 已激活！`);
 }

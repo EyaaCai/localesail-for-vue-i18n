@@ -173,7 +173,19 @@ const formatFiles = async (filePaths) => {
   }
 };
 
-module.exports = ({ context, uri }) => {
+module.exports = ({ context, uri, headless = false, dryRun = false }) => {
+  let finishHeadless = null;
+  const headlessResult = headless
+    ? new Promise((resolve) => {
+        finishHeadless = resolve;
+      })
+    : null;
+  const finish = (payload) => {
+    if (finishHeadless) finishHeadless(payload);
+  };
+  const finishError = (error, extra) =>
+    finish(Object.assign({ ok: false, error }, extra || {}));
+
   let fileFsPath;
   if (uri && uri.fsPath) {
     fileFsPath = uri.fsPath;
@@ -187,12 +199,15 @@ module.exports = ({ context, uri }) => {
   }
 
   if (!fileFsPath) {
-    showMessage({
-      type: 'error',
-      message: 'Can not resolve workspace folder without opening a file.',
-      needOpen: false
-    });
-    return;
+    if (!headless) {
+      showMessage({
+        type: 'error',
+        message: 'Can not resolve workspace folder without opening a file.',
+        needOpen: false
+      });
+    }
+    finishError('no-file-path');
+    return headlessResult;
   }
 
   const {
@@ -210,38 +225,61 @@ module.exports = ({ context, uri }) => {
   });
 
   if (!useCompactPathMode) {
-    showMessage({
-      type: 'error',
-      message: 'This feature only works when "useCompactPathMode" is enabled.',
-      needOpen: false
-    });
-    return;
+    if (!headless) {
+      showMessage({
+        type: 'error',
+        message: 'This feature only works when "useCompactPathMode" is enabled.',
+        needOpen: false
+      });
+    }
+    finishError('compact-mode-required');
+    return headlessResult;
   }
 
   const { localesPath, exist } = getLocales({
     fsPath: fileFsPath,
     defaultLocalesPath,
-    showError: true,
+    showError: !headless,
     showInfo: false,
   });
 
-  if (!exist) return;
+  if (!exist) {
+    if (!localesPath) {
+      finishError('no-project-root', {
+        hint: '向上找不到 package.json，无法定位语言包；请将文件所在项目加入工作区或确认路径'
+      });
+      return headlessResult;
+    }
+    finishError('locale-source-not-found', { localesPath });
+    return headlessResult;
+  }
 
     const filesToFormat = [];
     fs.readFile(localesPath, 'utf8', async (err, data) => {
-      if (err) return;
+      if (err) {
+        finishError('locale-source-read-failed', { localesPath });
+        return;
+      }
 
     let _data = {};
     try {
       _data = JSON.parse(data);
     } catch (e) {
-      showMessage({ type: 'error', message: 'Failed to parse JSON string of locales.' });
+      if (!headless) {
+        showMessage({ type: 'error', message: 'Failed to parse JSON string of locales.' });
+      }
+      finishError('locales-json-invalid', { localesPath });
       return;
     }
 
     const rootPath = getLocales({ fsPath: fileFsPath, isGetRootPath: true, defaultLocalesPath });
     if (!rootPath || typeof rootPath !== 'string') {
-      showMessage({ type: 'error', message: 'Could not resolve workspace root path.' });
+      if (!headless) {
+        showMessage({ type: 'error', message: 'Could not resolve workspace root path.' });
+      }
+      finishError('no-project-root', {
+        hint: '向上找不到 package.json，无法确定输出目录；请将文件所在项目加入工作区或确认路径'
+      });
       return;
     }
 
@@ -255,8 +293,11 @@ module.exports = ({ context, uri }) => {
       ? generateI18nFilesOutputDir
       : path.join(rootPath, generateI18nFilesOutputDir);
 
-    Object.keys(_data).forEach((key) => {
-      if (typeof _data[key] !== 'object' || Array.isArray(_data[key])) return;
+    const modules = [];
+    const writeFailures = [];
+    let totalEntries = 0;
+    for (const key of Object.keys(_data)) {
+      if (typeof _data[key] !== 'object' || Array.isArray(_data[key])) continue;
 
       const obj = _data[key];
 
@@ -271,15 +312,17 @@ module.exports = ({ context, uri }) => {
         const finalKey = useHashKeyOnly ? k : `${key}.${k}`;
         return formatLocaleModuleEntry(finalKey, obj[k] || '', indent);
       });
-      if (items.length === 0) return;
+      if (items.length === 0) continue;
 
       if (fs.existsSync(targetFilePath)) {
         let oldContent = '';
+        let targetDocument = null;
         try {
-          oldContent = fs.readFileSync(targetFilePath, 'utf8');
+          targetDocument = await workspace.openTextDocument(targetFilePath);
+          oldContent = targetDocument.getText();
         } catch (e) {
           console.error(`Failed to read existing file: ${targetFilePath}`, e);
-          return;
+          continue;
         }
 
         let existingObj = {};
@@ -356,11 +399,36 @@ module.exports = ({ context, uri }) => {
                   );
                 })();
 
-          try {
-            fs.writeFileSync(targetFilePath, contentStr, 'utf8');
-            filesToFormat.push(targetFilePath);
-          } catch (e) {
-            console.error(`Failed to write targeted file: ${targetFilePath}`, e);
+          modules.push({
+            file: targetFilePath,
+            exists: true,
+            newEntries: addedItems.length,
+          });
+          totalEntries += addedItems.length;
+          if (!dryRun) {
+            try {
+              // 已存在的模块文件走编辑器 API 全量替换，避免绕过文档模型造成保存冲突
+              const edit = new WorkspaceEdit();
+              const lastLine = targetDocument.lineAt(
+                Math.max(targetDocument.lineCount - 1, 0),
+              );
+              edit.replace(
+                targetDocument.uri,
+                new Range(new Position(0, 0), lastLine.range.end),
+                contentStr,
+              );
+              const applied = await workspace.applyEdit(edit);
+              if (!applied) {
+                throw new Error('applyEdit returned false');
+              }
+              if (targetDocument.isDirty) {
+                await targetDocument.save();
+              }
+              filesToFormat.push(targetFilePath);
+            } catch (e) {
+              console.error(`Failed to write targeted file: ${targetFilePath}`, e);
+              writeFailures.push(targetFilePath);
+            }
           }
         }
       } else {
@@ -368,46 +436,120 @@ module.exports = ({ context, uri }) => {
           const finalKey = useHashKeyOnly ? k : `${key}.${k}`;
           return formatLocaleModuleEntry(finalKey, _data[key][k] || '', indent);
         });
-        if (itemsToInsert.length === 0) return;
-        mkdirp.sync(targetDir);
-        const contentStr = `export default {\n${itemsToInsert.join('\n')}\n};\n`;
-        fs.writeFileSync(targetFilePath, contentStr, 'utf8');
-        filesToFormat.push(targetFilePath);
+        if (itemsToInsert.length === 0) continue;
+        modules.push({
+          file: targetFilePath,
+          exists: false,
+          newEntries: itemsToInsert.length,
+        });
+        totalEntries += itemsToInsert.length;
+        if (!dryRun) {
+          mkdirp.sync(targetDir);
+          const contentStr = `export default {\n${itemsToInsert.join('\n')}\n};\n`;
+          try {
+            fs.writeFileSync(targetFilePath, contentStr, 'utf8');
+            filesToFormat.push(targetFilePath);
+          } catch (e) {
+            console.error(`Failed to write new file: ${targetFilePath}`, e);
+            writeFailures.push(targetFilePath);
+          }
+        }
       }
-    });
+    }
+
+    if (dryRun) {
+      finish({
+        ok: true,
+        dryRun: true,
+        localesPath,
+        outputBaseDir,
+        modules,
+        totalModules: modules.length,
+        totalEntries,
+      });
+      return;
+    }
+
+    if (writeFailures.length > 0) {
+      if (!headless) {
+        showMessage({
+          type: 'error',
+          message: `Split i18n files were partially generated (failed: ${writeFailures.join(', ')}). Source JSON has not been cleared.`,
+          needOpen: false
+        });
+      }
+      finishError('write-failed', { failedFiles: writeFailures });
+      return;
+    }
 
     if (filesToFormat.length > 0) {
       try {
         await formatFiles(filesToFormat);
       } catch (e) {
         console.error('Failed to format generated i18n files:', e);
-        showMessage({
-          type: 'error',
-          message: 'Split i18n files were generated, but formatting failed. Source JSON has not been cleared.',
-          needOpen: false
-        });
+        if (!headless) {
+          showMessage({
+            type: 'error',
+            message: 'Split i18n files were generated, but formatting failed. Source JSON has not been cleared.',
+            needOpen: false
+          });
+        }
+        finishError('format-failed');
         return;
       }
     }
 
     try {
-      fs.writeFileSync(localesPath, '{}\n', 'utf8');
+      // 清空源 JSON 走编辑器 API，避免文件打开时外部直写导致保存冲突
+      const sourceDocument = await workspace.openTextDocument(localesPath);
+      const clearEdit = new WorkspaceEdit();
+      const sourceLastLine = sourceDocument.lineAt(
+        Math.max(sourceDocument.lineCount - 1, 0),
+      );
+      clearEdit.replace(
+        sourceDocument.uri,
+        new Range(new Position(0, 0), sourceLastLine.range.end),
+        '{}\n',
+      );
+      const cleared = await workspace.applyEdit(clearEdit);
+      if (!cleared) {
+        throw new Error('applyEdit returned false');
+      }
+      if (sourceDocument.isDirty) {
+        await sourceDocument.save();
+      }
     } catch (e) {
       console.error(`Failed to clear locales file: ${localesPath}`, e);
-      showMessage({
-        type: 'error',
-        message: `Split i18n files were generated, but failed to clear source JSON: ${localesPath}`,
-        needOpen: false
-      });
+      if (!headless) {
+        showMessage({
+          type: 'error',
+          message: `Split i18n files were generated, but failed to clear source JSON: ${localesPath}`,
+          needOpen: false
+        });
+      }
+      finishError('clear-source-failed', { localesPath });
       return;
     }
 
-    showMessage({
-      type: 'info',
-      message: `Split i18n files have been generated to ${generateI18nFilesOutputDir} successfully.`,
-      needOpen: false
+    if (!headless) {
+      showMessage({
+        type: 'info',
+        message: `Split i18n files have been generated to ${generateI18nFilesOutputDir} successfully.`,
+        needOpen: false
+      });
+    }
+    finish({
+      ok: true,
+      localesPath,
+      outputBaseDir,
+      modules,
+      totalModules: modules.length,
+      totalEntries,
+      cleared: true,
     });
   });
+
+  return headlessResult;
 };
 
 module.exports._private = {
