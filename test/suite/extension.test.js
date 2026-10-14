@@ -89,6 +89,11 @@ const {
 } = require('../../src/lib/localeKeyLocation');
 const { provideDefinition } =
 	require('../../src/lib/provideDefinition');
+const { createToolSet, TOOL_DEFINITIONS } = require('../../src/mcp/tools');
+const {
+	mapLimit,
+	resolveBatchTargets
+} = require('../../src/mcp/tools')._private;
 const packageJson = require('../../package.json');
 // const myExtension = require('../extension');
 const createEditor = (text, languageId) => {
@@ -1765,6 +1770,94 @@ suite('Extension Test Suite', () => {
 		assert.deepStrictEqual(
 			Object.keys(defaultConfig).sort(),
 			contributedKeys.sort()
+		);
+	});
+
+	test('MCP mapLimit preserves result order within the concurrency limit', async () => {
+		let active = 0;
+		let peak = 0;
+		const items = [1, 2, 3, 4, 5, 6, 7];
+		const results = await mapLimit(items, 4, async (item) => {
+			active += 1;
+			peak = Math.max(peak, active);
+			await new Promise((resolve) => setTimeout(resolve, 5));
+			active -= 1;
+			return item * 2;
+		});
+		assert.strictEqual(peak <= 4, true);
+		assert.deepStrictEqual(results, items.map((item) => item * 2));
+	});
+
+	test('MCP resolveBatchTargets rejects invalid input', () => {
+		assert.throws(
+			() => resolveBatchTargets({}),
+			/paths must be a non-empty array/
+		);
+		assert.throws(
+			() => resolveBatchTargets({ paths: [] }),
+			/paths must be a non-empty array/
+		);
+		assert.throws(
+			() => resolveBatchTargets({ paths: [''] }),
+			/paths items must be non-empty strings/
+		);
+		assert.deepStrictEqual(resolveBatchTargets({ paths: ['a', 'b'] }), [
+			'a',
+			'b'
+		]);
+	});
+
+	test('MCP batch tools expose paths input and keep path compatibility', () => {
+		['extract_chinese', 'write_locale', 'apply_i18n_keys'].forEach((name) => {
+			const tool = TOOL_DEFINITIONS.find((item) => item.name === name);
+			assert.ok(tool, `${name} should be defined`);
+			assert.ok(tool.inputSchema.properties.path);
+			assert.ok(tool.inputSchema.properties.paths);
+			assert.deepStrictEqual(tool.inputSchema.anyOf, [
+				{ required: ['path'] },
+				{ required: ['paths'] }
+			]);
+		});
+	});
+
+	test('MCP extract_chinese batch call scans multiple paths and reports timing', async () => {
+		const rootDir = fs.mkdtempSync(
+			path.join(os.tmpdir(), 'localesail-mcp-batch-')
+		);
+		const firstCopy = '\u6279\u91cf\u63d0\u53d6\u4e00\u53f7';
+		const secondCopy = '\u6279\u91cf\u63d0\u53d6\u4e8c\u53f7';
+		const firstFile = path.join(rootDir, 'batch-first.ts');
+		const secondFile = path.join(rootDir, 'batch-second.js');
+		fs.writeFileSync(
+			firstFile,
+			`export const first = '${firstCopy}';\n`,
+			'utf8'
+		);
+		fs.writeFileSync(
+			secondFile,
+			`export const second = '${secondCopy}';\n`,
+			'utf8'
+		);
+
+		const toolSet = createToolSet({});
+		const text = await toolSet.callTool('extract_chinese', {
+			paths: [firstFile, secondFile, path.join(rootDir, 'missing.ts')]
+		});
+		const payload = JSON.parse(text);
+		assert.strictEqual(payload.fileCount, 2);
+		assert.strictEqual(payload.totalEntries, 2);
+		assert.ok(payload.timing && typeof payload.timing.ms === 'number');
+		assert.ok(
+			payload.files.every((item) => typeof item.ms === 'number')
+		);
+		const entries = payload.files.reduce(
+			(acc, item) => acc.concat(item.entries),
+			[]
+		);
+		assert.ok(entries.indexOf(firstCopy) !== -1);
+		assert.ok(entries.indexOf(secondCopy) !== -1);
+		assert.ok(
+			payload.errors.some((item) => item.error === 'path-not-found')
 		);
 	});
 });

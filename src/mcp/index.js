@@ -68,8 +68,11 @@ const probeLocaleSailEndpoint = (port, token) =>
   });
 
 module.exports = (context) => {
-  const toolSet = createToolSet(context);
   const output = window.createOutputChannel(OUTPUT_CHANNEL_NAME);
+  const log = (message) => {
+    output.appendLine(`[${new Date().toISOString()}] ${message}`);
+  };
+  const toolSet = createToolSet(context, { log });
   const token = getOrCreateToken(context);
   let server = null;
   let activePort = null;
@@ -84,10 +87,6 @@ module.exports = (context) => {
     return typeof configured === 'number' && configured > 0 && configured < 65536
       ? configured
       : DEFAULT_PORT;
-  };
-
-  const log = (message) => {
-    output.appendLine(`[${new Date().toISOString()}] ${message}`);
   };
 
   const clearRetry = () => {

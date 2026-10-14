@@ -6,6 +6,7 @@
 - **写入方式统一切换到编辑器 API**：`Replace Copy with i18n Keys`、`Extract Chinese Copy`、`Build Split Locale Modules` 的写回均改为通过编辑器 API（WorkspaceEdit）应用，交互行为保持不变；解决了IDE"文件已被外部修改"的保存冲突提示，也支持无可见编辑器的自动化调用场景。
 - **key 前缀与错误处理增强**：操作的文件不属于当前工作区时（例如 AI 通过绝对路径处理其他项目），改为向上查找 `package.json` 定位项目根，保证紧凑路径 key 前缀完整；无法定位项目根时 MCP 工具明确报错（`no-project-root`）而不是静默降级为文件名前缀；同时修复了非项目文件向上查找配置时的无限递归问题。
 - **替换翻译函数跟随文件内声明**：`Replace Copy with i18n Keys` 与 MCP `apply_i18n_keys` 现在会解析文件里已声明的翻译函数并优先复用：`useI18n` 解构（含 `const { t: tt }` 别名）与 `localeSail.scopedTranslateFunctionNames` 配置的局部翻译函数（默认 `useLocale`，声明的 scope 与当前文件 key 前缀一致时启用），覆盖 `$t`、自定义名（如 `originT`）与 `x.t` 调用形态；Vue 3 `<script setup>` 的模板与脚本不再在有可用声明时产出未定义的 `t(...)`。无现成声明与调用时保持原有默认逻辑。
+- **MCP 批量调用与耗时可观测**：`extract_chinese` / `write_locale` / `apply_i18n_keys` 新增 `paths` 入参，可一次传入本轮全部文件与目录（`path` 单路径用法保持不变）：`write_locale` 批量按顺序写入暂存保证一致，`extract_chinese` / `apply_i18n_keys` 批内限流并发；批量结果按文件返回（含 `prefix`、`newEntries`、`ms`），返回值统一含 `timing`；每次调用的工具名、文件数与耗时记录到 `LocaleSail MCP` 输出通道，便于定位慢点。
 
 ## 0.4.5
 

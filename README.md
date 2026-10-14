@@ -437,10 +437,12 @@ export default {
 
 | 工具 | 说明 |
 | --- | --- |
-| `extract_chinese` | 扫描指定文件或目录中的中文文案，返回中文清单（只读） |
-| `write_locale` | 扫描源文件中文，生成 key 并合并写入语言包 JSON，返回实际写入的 key→文案映射（`dryRun` 可预览） |
-| `apply_i18n_keys` | 将指定文件中已存在于语言包的文案替换为 i18n 调用（翻译函数跟随文件内已有声明/调用）并保存 |
+| `extract_chinese` | 扫描指定文件或目录中的中文文案，返回中文清单（只读）；可用 `paths` 一次传多个目标，内部限流并发 |
+| `write_locale` | 扫描源文件中文，生成 key 并合并写入语言包 JSON，返回实际写入的 key→文案映射（`dryRun` 可预览）；可用 `paths` 批量传文件，按顺序写入保证一致 |
+| `apply_i18n_keys` | 将指定文件中已存在于语言包的文案替换为 i18n 调用（翻译函数跟随文件内已有声明/调用）并保存；可用 `paths` 批量传文件，内部限流并发 |
 | `split_locale_modules` | 将语言包 JSON 拆分为 JS/TS 模块（`dryRun` 可预览；执行后清空源 JSON） |
+
+除 `split_locale_modules` 外，其余工具均支持 `path`（单路径）与 `paths`（多路径数组，推荐一次传全量清单以减少多轮调用）两种入参；批量结果按文件返回（含每文件耗时 `ms`），返回值含 `timing`（本次调用耗时）。每次调用的工具名、文件数与耗时也会输出到 `LocaleSail MCP` 输出通道，便于排查性能。
 
 服务默认开启，可在设置中通过 `localeSail.mcp.enabled` 关闭；`localeSail.mcp.port` 可修改端口（默认 `39167`）。
 
