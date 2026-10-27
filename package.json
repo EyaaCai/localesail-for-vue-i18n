@@ -197,8 +197,8 @@
         },
         "localeSail.mcp.enabled": {
           "type": "boolean",
-          "default": true,
-          "description": "启用内置 MCP 服务，允许本机 AI 客户端（如 Qoder、Claude Code）调用 LocaleSail 的提取与替换能力。服务仅监听 127.0.0.1，并使用令牌鉴权；关闭后立即停止监听。"
+          "default": false,
+          "description": "默认关闭。启用内置 MCP 服务后，本机 AI 客户端（如 Qoder、Claude Code）可调用 LocaleSail 的提取与替换能力。服务仅监听 127.0.0.1，并使用令牌鉴权；关闭后立即停止监听。"
         },
         "localeSail.mcp.port": {
           "type": "number",

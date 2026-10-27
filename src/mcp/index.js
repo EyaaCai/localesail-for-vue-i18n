@@ -11,6 +11,7 @@ const TOKEN_STATE_KEY = 'localeSail.mcp.token';
 const OUTPUT_CHANNEL_NAME = 'LocaleSail MCP';
 const RETRY_DELAYS_MS = [1000, 3000, 5000];
 const PROBE_TIMEOUT_MS = 1500;
+const STANDBY_PROBE_INTERVAL_MS = 30000;
 
 const getOrCreateToken = (context) => {
   let token = context.globalState.get(TOKEN_STATE_KEY);
@@ -79,6 +80,9 @@ module.exports = (context) => {
   let retryAttempt = 0;
   let retryTimer = null;
   let starting = false;
+  let standby = false;
+  let standbyTimer = null;
+  let standbyFocusListener = null;
 
   const getMcpConfig = () => workspace.getConfiguration('localeSail.mcp');
 
@@ -112,9 +116,49 @@ module.exports = (context) => {
         }
       });
 
+  const clearStandby = () => {
+    standby = false;
+    if (standbyTimer) {
+      clearInterval(standbyTimer);
+      standbyTimer = null;
+    }
+    if (standbyFocusListener) {
+      standbyFocusListener.dispose();
+      standbyFocusListener = null;
+    }
+  };
+
+  const checkStandby = async (port) => {
+    if (!standby) return;
+    const alive = await probeLocaleSailEndpoint(port, token);
+    if (!standby) return;
+    if (!alive) {
+      clearStandby();
+      start();
+    }
+  };
+
+  const enterStandby = (port) => {
+    clearStandby();
+    standby = true;
+    log(
+      `Port ${port} is already serving LocaleSail MCP from another VS Code window. This window is on standby and will take over automatically if that server stops.`,
+    );
+    log(
+      "MCP tool calls operate on that window's workspace until takeover.",
+    );
+    standbyFocusListener = window.onDidChangeWindowState((state) => {
+      if (state.focused) checkStandby(port);
+    });
+    standbyTimer = setInterval(
+      () => checkStandby(port),
+      STANDBY_PROBE_INTERVAL_MS,
+    );
+  };
+
   const start = async () => {
     if (starting || server) return;
-    if (!getMcpConfig().get('enabled', true)) return;
+    if (!getMcpConfig().get('enabled', false)) return;
     starting = true;
     try {
       const port = getPort();
@@ -155,9 +199,7 @@ module.exports = (context) => {
         }
         log(`MCP server failed to start (port ${port}): ${message}`);
         if (addressInUse && (await probeLocaleSailEndpoint(port, token))) {
-          log(
-            `Port ${port} is already serving LocaleSail MCP from another VS Code window. This window will not start a duplicate server.`,
-          );
+          enterStandby(port);
           return;
         }
         if (addressInUse) {
@@ -172,9 +214,14 @@ module.exports = (context) => {
 
   const stop = () => {
     clearRetry();
+    clearStandby();
     if (!server) return;
     try {
       server.close();
+      if (typeof server.closeAllConnections === 'function') {
+        // 断开 MCP 客户端的连接，避免残留连接拖住扩展宿主进程不退出
+        server.closeAllConnections();
+      }
     } catch (error) {
       // server 已关闭时忽略
     }
@@ -184,7 +231,8 @@ module.exports = (context) => {
 
   const applyEnabled = () => {
     clearRetry();
-    if (!getMcpConfig().get('enabled', true)) {
+    clearStandby();
+    if (!getMcpConfig().get('enabled', false)) {
       stop();
       return;
     }
@@ -195,7 +243,8 @@ module.exports = (context) => {
   };
 
   const copyMcpConfig = async () => {
-    if (!server || !activePort) {
+    const endpointPort = server ? activePort : standby ? getPort() : null;
+    if (!endpointPort) {
       window.showWarningMessage(
         'LocaleSail MCP is not running. Enable "localeSail.mcp.enabled" in settings and check the LocaleSail MCP output channel for errors.',
       );
@@ -205,7 +254,7 @@ module.exports = (context) => {
       mcpServers: {
         localesail: {
           type: 'http',
-          url: `http://127.0.0.1:${activePort}${MCP_PATH}`,
+          url: `http://127.0.0.1:${endpointPort}${MCP_PATH}`,
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -214,20 +263,29 @@ module.exports = (context) => {
     };
     await env.clipboard.writeText(JSON.stringify(snippet, null, 2));
     window.showInformationMessage(
-      'LocaleSail MCP configuration copied to clipboard.',
+      standby
+        ? 'LocaleSail MCP configuration copied. The endpoint is currently served by another VS Code window.'
+        : 'LocaleSail MCP configuration copied to clipboard.',
     );
   };
 
   const showMcpStatus = async () => {
-    const enabled = getMcpConfig().get('enabled', true);
+    const enabled = getMcpConfig().get('enabled', false);
     const port = server ? activePort : getPort();
+    const state = server ? 'running' : standby ? 'standby' : 'not running';
     const lines = [
-      `MCP server: ${server ? 'running' : 'not running'}`,
+      `MCP server: ${state}`,
       `Enabled: ${enabled ? 'yes' : 'no'} (localeSail.mcp.enabled)`,
       `Endpoint: http://127.0.0.1:${port}${MCP_PATH}`,
       `Token: ${token.slice(0, 8)}... (full value via "Copy MCP Configuration")`,
     ];
-    if (enabled && !server) {
+    if (standby) {
+      lines.push(
+        "Another VS Code window serves this endpoint. MCP tool calls operate on that window's workspace until this window takes over.",
+        'If the port stays occupied after all VS Code windows are closed, a leftover VS Code process still holds it; end the remaining Code.exe in Task Manager.',
+      );
+    }
+    if (enabled && !server && !standby) {
       lines.push(
         'Startup failed or pending. Check the "LocaleSail MCP" output channel for details.',
       );

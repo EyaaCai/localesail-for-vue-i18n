@@ -412,12 +412,13 @@ export default {
 
 ## MCP 服务（AI 集成）
 
-扩展内置一个 MCP（Model Context Protocol）服务，让本机 AI 客户端（Qoder、Claude Code 等）直接调用 LocaleSail 的提取与替换能力。服务仅监听 `127.0.0.1`，不会对外网开放，并使用访问令牌鉴权。
+扩展内置一个 MCP（Model Context Protocol）服务，让本机 AI 客户端（Qoder、Claude Code 等）直接调用 LocaleSail 的提取与替换能力。该功能默认关闭，按需开启。服务仅监听 `127.0.0.1`，不会对外网开放，并使用访问令牌鉴权。
 
 把配置接入 AI 客户端：
 
-1. 执行命令 `LocaleSail: Copy MCP Configuration`，包含访问令牌的配置片段会复制到剪贴板；
-2. 粘贴到 AI 客户端的 MCP 配置中：
+1. 在设置中将 `localeSail.mcp.enabled` 设为 `true`，开启服务；
+2. 执行命令 `LocaleSail: Copy MCP Configuration`，包含访问令牌的配置片段会复制到剪贴板；
+3. 粘贴到 AI 客户端的 MCP 配置中：
 
 ```json
 {
@@ -444,7 +445,9 @@ export default {
 
 除 `split_locale_modules` 外，其余工具均支持 `path`（单路径）与 `paths`（多路径数组，推荐一次传全量清单以减少多轮调用）两种入参；批量结果按文件返回（含每文件耗时 `ms`），返回值含 `timing`（本次调用耗时）。每次调用的工具名、文件数与耗时也会输出到 `LocaleSail MCP` 输出通道，便于排查性能。
 
-服务默认开启，可在设置中通过 `localeSail.mcp.enabled` 关闭；`localeSail.mcp.port` 可修改端口（默认 `39167`）。
+服务默认关闭，在设置中将 `localeSail.mcp.enabled` 设为 `true` 开启，设为 `false` 会立即停止监听；`localeSail.mcp.port` 可修改端口（默认 `39167`）。
+
+该服务只监听本机回环地址 `127.0.0.1`，不对局域网开放，所有请求必须携带 Bearer Token。Token 由扩展自动生成并保存在 VS Code 全局状态中，可通过 `LocaleSail: Copy MCP Configuration` 获取，请勿外泄。
 
 排查连接问题：执行 `LocaleSail: Show MCP Status` 查看服务运行状态、端点地址与令牌前缀（弹窗内可一键复制完整配置）。
 
